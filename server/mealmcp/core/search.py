@@ -25,7 +25,7 @@ def _rrf_score(rank: int, k: int = 60) -> float:
     return 1.0 / (k + rank)
 
 
-async def _fts_search(query: str, limit: int) -> list[tuple[str, int]]:
+async def _fts_search(query: str, limit: int) -> list[tuple[str, float]]:
     """Full-text search returning (recipe_id, rank) pairs."""
     async with get_db() as db:
         async with db.execute(
@@ -39,7 +39,7 @@ async def _fts_search(query: str, limit: int) -> list[tuple[str, int]]:
             (query, limit),
         ) as cursor:
             rows = await cursor.fetchall()
-            return [(str(row["recipe_id"]), int(str(row["rank"]))) for row in rows]
+            return [(str(row["recipe_id"]), float(str(row["rank"]))) for row in rows]
 
 
 async def _vector_search(
