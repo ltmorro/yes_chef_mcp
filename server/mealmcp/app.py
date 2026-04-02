@@ -7,13 +7,13 @@ Claude Desktop connects via SSE at /mcp/sse, React UI hits REST at /api/*.
 from __future__ import annotations
 
 import logging
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from mealmcp.api.routes import router
-from mealmcp.core.db import close_connection, get_connection
+from mealmcp.core.db import get_db
 from mealmcp.mcp.server import mcp
 
 logger = logging.getLogger(__name__)
@@ -23,10 +23,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Initialize database on startup, close on shutdown."""
     logger.info("MealMCP starting — initializing database")
-    get_connection()
+    async with get_db():
+        pass
     yield
-    logger.info("MealMCP shutting down — closing database")
-    close_connection()
+    logger.info("MealMCP shutting down")
 
 
 app = FastAPI(

@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "fastmcp>=2.0.0",
     "pydantic>=2.10.0",
+    "aiosqlite>=0.20.0",
     "sqlite-vec>=0.1.6",
     "sentence-transformers>=3.3.0",
     "mip>=1.15.0",
@@ -42,7 +43,6 @@ select = [
     "UP",   # pyupgrade
     "B",    # flake8-bugbear
     "SIM",  # flake8-simplify
-    "TCH",  # flake8-type-checking
     "RUF",  # ruff-specific
 ]
 

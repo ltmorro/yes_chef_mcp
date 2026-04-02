@@ -2,13 +2,16 @@
 
 These handle validation and serialization at the edges.
 Internal code uses the dataclass models from core.models.
+
+All schemas use `from_attributes=True` so they can be constructed
+directly from dataclass instances via `Schema.model_validate(obj)`.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from mealmcp.core.models import (
     DetailLevel,
@@ -29,6 +32,8 @@ from mealmcp.core.models import (
 
 
 class MacroSummarySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     calories: float = 0.0
     protein_g: float = 0.0
     carbs_g: float = 0.0
@@ -36,6 +41,8 @@ class MacroSummarySchema(BaseModel):
 
 
 class IngredientSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     name: str
     quantity: float | None = None
     unit: str | None = None
@@ -44,6 +51,8 @@ class IngredientSchema(BaseModel):
 
 
 class MealComponentSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     recipe_id: str
     servings: float = 1.0
 
@@ -52,6 +61,8 @@ class MealComponentSchema(BaseModel):
 
 
 class RecipeSearchHitSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     category: RecipeCategory | None = None
@@ -64,12 +75,16 @@ class RecipeSearchHitSchema(BaseModel):
 
 
 class RecipeSearchPageSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     hits: list[RecipeSearchHitSchema] = Field(default_factory=list)
     next_cursor: str | None = None
     total_count: int = 0
 
 
 class RecipeDetailSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     family_id: str
     name: str
@@ -91,6 +106,8 @@ class RecipeDetailSchema(BaseModel):
 
 
 class NutritionSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     recipe_id: str
     calories: float
     protein_g: float
@@ -107,6 +124,8 @@ class NutritionSchema(BaseModel):
 
 
 class FamilySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     provider: ProviderType
@@ -114,6 +133,8 @@ class FamilySchema(BaseModel):
 
 
 class MemberSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     family_id: str
     name: str
@@ -132,6 +153,8 @@ class CreateMemberRequest(BaseModel):
 
 
 class MacroTargetSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     member_id: str
     name: str
@@ -155,6 +178,8 @@ class SetMacroTargetRequest(BaseModel):
 
 
 class MealPlanSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     family_id: str
     name: str
@@ -171,6 +196,8 @@ class CreateMealPlanRequest(BaseModel):
 
 
 class MealSlotSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     plan_id: str
     day_offset: int = Field(ge=0, le=13)
     meal_type: MealType
@@ -191,6 +218,8 @@ class AddToMealPlanRequest(BaseModel):
 
 
 class ComponentNutritionSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     recipe_id: str
     recipe_name: str
     servings: float
@@ -198,6 +227,8 @@ class ComponentNutritionSchema(BaseModel):
 
 
 class MealCompositionSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     components: list[ComponentNutritionSchema] = Field(default_factory=list)
     totals: MacroSummarySchema = Field(default_factory=MacroSummarySchema)
     member_deltas: dict[str, MacroSummarySchema] = Field(default_factory=dict)
@@ -211,6 +242,8 @@ class ComposeMealRequest(BaseModel):
 
 
 class ComplementSuggestionSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     recipe_id: str
     recipe_name: str
     category: RecipeCategory | None = None
@@ -223,6 +256,8 @@ class ComplementSuggestionSchema(BaseModel):
 
 
 class GroceryItemSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     name: str
     quantity: float
     unit: str | None = None
@@ -231,6 +266,8 @@ class GroceryItemSchema(BaseModel):
 
 
 class GroceryListSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     plan_id: str
     items: list[GroceryItemSchema] = Field(default_factory=list)
 
@@ -297,6 +334,8 @@ class RebalancePlanRequest(BaseModel):
 
 
 class SolverResultSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     status: SolverStatus
     relaxations_applied: list[str] = Field(default_factory=list)
     objective_score: float = 0.0
@@ -305,6 +344,8 @@ class SolverResultSchema(BaseModel):
 
 
 class OptimizedMealSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     recipes: list[MealComponentSchema] = Field(default_factory=list)
     member_servings: dict[str, dict[str, float]] = Field(default_factory=dict)
     member_macros: dict[str, MacroSummarySchema] = Field(default_factory=dict)
@@ -315,6 +356,8 @@ class OptimizedMealSchema(BaseModel):
 
 
 class OptimizedPlanSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     plan_id: str
     slots: list[MealSlotSchema] = Field(default_factory=list)
     daily_summaries: dict[str, dict[int, MacroSummarySchema]] = Field(default_factory=dict)
@@ -326,6 +369,8 @@ class OptimizedPlanSchema(BaseModel):
 
 
 class RebalancedPlanSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     plan_id: str
     member_id: str
     strategy: RebalanceStrategy
@@ -339,12 +384,16 @@ class RebalancedPlanSchema(BaseModel):
 
 
 class MealPlanDaySummarySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     day_offset: int
     member_macros: dict[str, MacroSummarySchema] = Field(default_factory=dict)
     meals: dict[str, list[MealComponentSchema]] = Field(default_factory=dict)
 
 
 class MealPlanSummarySchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     plan_id: str
     plan_name: str
     start_date: date

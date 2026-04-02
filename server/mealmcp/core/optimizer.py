@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass, field
 
 from mealmcp.core.constraint_relaxer import RelaxationState, iterate_relaxations
+from mealmcp.core.db import get_db
 from mealmcp.core.models import (
     MacroSummary,
     MacroTarget,
@@ -24,6 +25,7 @@ from mealmcp.core.models import (
     MealConstraints,
     MealSlot,
     MealType,
+    Nutrition,
     OptimizedMeal,
     OptimizedPlan,
     OptimizationObjective,
@@ -34,6 +36,7 @@ from mealmcp.core.models import (
     SolverResult,
     SolverStatus,
 )
+from mealmcp.core.planner import get_meal_plan, get_meal_slots
 from mealmcp.core.recipe_store import get_nutrition_batch, list_recipes
 
 
@@ -60,18 +63,16 @@ class _MealAssignment:
     member_servings: dict[str, float] = field(default_factory=dict)
 
 
-def _get_member_targets(member_ids: list[str]) -> dict[str, MacroTarget]:
+async def _get_member_targets(member_ids: list[str]) -> dict[str, MacroTarget]:
     """Fetch active macro targets for members."""
-    from mealmcp.core.db import get_cursor
-
     targets: dict[str, MacroTarget] = {}
     for mid in member_ids:
-        with get_cursor() as cursor:
-            cursor.execute(
+        async with get_db() as db:
+            cursor = await db.execute(
                 "SELECT * FROM macro_targets WHERE member_id = ? AND is_active = 1",
                 (mid,),
             )
-            row = cursor.fetchone()
+            row = await cursor.fetchone()
             if row:
                 targets[mid] = MacroTarget(
                     id=str(row["id"]),
@@ -86,13 +87,13 @@ def _get_member_targets(member_ids: list[str]) -> dict[str, MacroTarget]:
     return targets
 
 
-def _load_candidates(
+async def _load_candidates(
     family_id: str | None = None,
     candidate_ids: list[str] | None = None,
     excluded_ids: list[str] | None = None,
 ) -> list[_CandidateRecipe]:
     """Load candidate recipes with nutrition data."""
-    recipes = list_recipes(family_id=family_id, limit=1000)
+    recipes = await list_recipes(family_id=family_id, limit=1000)
 
     if candidate_ids is not None:
         id_set = set(candidate_ids)
@@ -103,7 +104,7 @@ def _load_candidates(
         recipes = [r for r in recipes if r.id not in excluded]
 
     recipe_ids = [r.id for r in recipes]
-    nutrition_map = get_nutrition_batch(recipe_ids)
+    nutrition_map = await get_nutrition_batch(recipe_ids)
 
     candidates: list[_CandidateRecipe] = []
     for r in recipes:
@@ -266,7 +267,7 @@ def _assignments_to_optimized_meal(
     )
 
 
-def optimize_meal(
+async def optimize_meal(
     member_ids: list[str],
     meal_type: MealType,
     candidate_recipe_ids: list[str] | None = None,
@@ -284,11 +285,11 @@ def optimize_meal(
     Returns num_alternatives solutions ranked by objective score.
     """
     start = time.monotonic()
-    member_targets = _get_member_targets(member_ids)
+    member_targets = await _get_member_targets(member_ids)
     if not member_targets:
         return []
 
-    candidates = _load_candidates(
+    candidates = await _load_candidates(
         candidate_ids=candidate_recipe_ids,
         excluded_ids=excluded_recipe_ids,
     )
@@ -351,7 +352,7 @@ def _flatten_used(used_sets: list[set[str]]) -> set[str]:
     return set()  # Allow reuse across alternatives, just avoid exact combos
 
 
-def optimize_plan(
+async def optimize_plan(
     plan_id: str,
     member_ids: list[str],
     meal_types: list[MealType] | None = None,
@@ -364,16 +365,14 @@ def optimize_plan(
 
     Uses per-slot greedy optimization with constraint relaxation.
     """
-    from mealmcp.core.planner import get_meal_plan, get_meal_slots
-
     start = time.monotonic()
-    plan = get_meal_plan(plan_id)
+    plan = await get_meal_plan(plan_id)
     if plan is None:
         return OptimizedPlan(plan_id=plan_id)
 
     types = meal_types or [MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER]
-    member_targets = _get_member_targets(member_ids)
-    existing_slots = get_meal_slots(plan_id)
+    member_targets = await _get_member_targets(member_ids)
+    existing_slots = await get_meal_slots(plan_id)
 
     # Track pinned slots
     pinned: set[tuple[int, str]] = set()
@@ -381,7 +380,7 @@ def optimize_plan(
         for ps in pinned_slots:
             pinned.add((ps.day_offset, ps.meal_type.value))
 
-    candidates = _load_candidates(
+    candidates = await _load_candidates(
         excluded_ids=(constraints.excluded_recipe_ids if constraints else None),
     )
 
@@ -422,7 +421,7 @@ def optimize_plan(
             if constraints and constraints.day_constraints:
                 slot_constraints = constraints.day_constraints.get(day)
 
-            meal_results = optimize_meal(
+            meal_results = await optimize_meal(
                 member_ids=member_ids,
                 meal_type=mt,
                 candidate_recipe_ids=[c.id for c in available],
@@ -455,7 +454,7 @@ def optimize_plan(
     elapsed_ms = int((time.monotonic() - start) * 1000)
 
     # Compute summaries
-    daily_summaries, weekly_summaries = _compute_plan_summaries(
+    daily_summaries, weekly_summaries = await _compute_plan_summaries(
         all_slots, member_targets, plan.days
     )
 
@@ -490,13 +489,13 @@ def _to_meal_constraints(
     return slot_constraints
 
 
-def _compute_plan_summaries(
+async def _compute_plan_summaries(
     slots: list[MealSlot],
     member_targets: dict[str, MacroTarget],
     num_days: int,
 ) -> tuple[dict[str, list[MacroSummary]], dict[str, MacroSummary]]:
     """Compute daily and weekly macro summaries per member."""
-    nutrition_map = get_nutrition_batch([s.recipe_id for s in slots])
+    nutrition_map = await get_nutrition_batch([s.recipe_id for s in slots])
 
     # daily_totals[member_id][day] = MacroSummary
     daily: dict[str, list[list[float]]] = {}
@@ -546,7 +545,7 @@ def _compute_plan_summaries(
     return daily_summaries, weekly_summaries
 
 
-def rebalance_plan(
+async def rebalance_plan(
     plan_id: str,
     member_id: str,
     strategy: RebalanceStrategy = RebalanceStrategy.ADJUST_SERVINGS,
@@ -556,20 +555,18 @@ def rebalance_plan(
     adjust_servings: Keep all recipes, solve for optimal serving sizes.
     swap_sides: Keep mains fixed, try swapping sides.
     """
-    from mealmcp.core.planner import get_meal_plan, get_meal_slots
-
     start = time.monotonic()
-    plan = get_meal_plan(plan_id)
+    plan = await get_meal_plan(plan_id)
     if plan is None:
         return RebalancedPlan(plan_id=plan_id, member_id=member_id, strategy=strategy)
 
-    member_targets = _get_member_targets([member_id])
+    member_targets = await _get_member_targets([member_id])
     target = member_targets.get(member_id)
     if target is None:
         return RebalancedPlan(plan_id=plan_id, member_id=member_id, strategy=strategy)
 
-    slots = get_meal_slots(plan_id)
-    nutrition_map = get_nutrition_batch([s.recipe_id for s in slots])
+    slots = await get_meal_slots(plan_id)
+    nutrition_map = await get_nutrition_batch([s.recipe_id for s in slots])
 
     # Compute before macros
     before_macros = _compute_daily_macros(slots, nutrition_map, member_id, plan.days)
@@ -602,18 +599,16 @@ def rebalance_plan(
 
 def _compute_daily_macros(
     slots: list[MealSlot],
-    nutrition_map: dict[str, object],
+    nutrition_map: dict[str, Nutrition],
     member_id: str,
     num_days: int,
 ) -> dict[int, MacroSummary]:
     """Compute daily macros for a single member."""
-    from mealmcp.core.models import Nutrition
-
     daily: dict[int, list[float]] = {d: [0.0, 0.0, 0.0, 0.0] for d in range(num_days)}
 
     for slot in slots:
         nutr = nutrition_map.get(slot.recipe_id)
-        if not isinstance(nutr, Nutrition):
+        if nutr is None:
             continue
         s = slot.member_servings.get(member_id, slot.servings)
         if slot.day_offset in daily:
@@ -630,14 +625,12 @@ def _compute_daily_macros(
 
 def _adjust_servings(
     slots: list[MealSlot],
-    nutrition_map: dict[str, object],
+    nutrition_map: dict[str, Nutrition],
     member_id: str,
     target: MacroTarget,
     num_days: int,
 ) -> list[MealSlot]:
     """Adjust serving sizes to minimize macro deviation using scipy."""
-    from mealmcp.core.models import Nutrition
-
     try:
         from scipy.optimize import minimize as scipy_minimize
         import numpy as np
@@ -661,9 +654,10 @@ def _adjust_servings(
         valid_slots: list[MealSlot] = []
         for s in day_s:
             n = nutrition_map.get(s.recipe_id)
-            if isinstance(n, Nutrition):
-                nutr_list.append(n)
-                valid_slots.append(s)
+            if n is None:
+                continue
+            nutr_list.append(n)
+            valid_slots.append(s)
 
         if not valid_slots:
             adjusted.extend(day_s)
@@ -673,11 +667,15 @@ def _adjust_servings(
         n_recipes = len(valid_slots)
         x0 = np.array([s.member_servings.get(member_id, s.servings) for s in valid_slots])
 
-        def objective(x: np.ndarray) -> float:
-            cal = sum(nutr_list[i].calories * x[i] for i in range(n_recipes))
-            pro = sum(nutr_list[i].protein_g * x[i] for i in range(n_recipes))
-            carb = sum(nutr_list[i].carbs_g * x[i] for i in range(n_recipes))
-            fat_val = sum(nutr_list[i].fat_g * x[i] for i in range(n_recipes))
+        def objective(
+            x: np.ndarray,
+            _nutr_list: list[Nutrition] = nutr_list,
+            _n_recipes: int = n_recipes,
+        ) -> float:
+            cal = sum(_nutr_list[i].calories * x[i] for i in range(_n_recipes))
+            pro = sum(_nutr_list[i].protein_g * x[i] for i in range(_n_recipes))
+            carb = sum(_nutr_list[i].carbs_g * x[i] for i in range(_n_recipes))
+            fat_val = sum(_nutr_list[i].fat_g * x[i] for i in range(_n_recipes))
 
             macros = MacroSummary(
                 calories=float(cal),

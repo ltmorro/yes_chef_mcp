@@ -6,22 +6,50 @@ can call. Each tool delegates to the core library for actual logic.
 
 from __future__ import annotations
 
+import uuid
+from datetime import date
+
 from fastmcp import FastMCP
 
+from mealmcp.core.db import get_db
+from mealmcp.core.grocery import generate_grocery_list as _generate_grocery
+from mealmcp.core.meal_composer import compose_meal as _compose, suggest_complements
 from mealmcp.core.models import (
+    DetailLevel,
     MealComponent,
     MealType,
     OptimizationObjective,
     RebalanceStrategy,
     RecipeCategory,
 )
+from mealmcp.core.optimizer import (
+    optimize_meal as _optimize_meal,
+    optimize_plan as _optimize_plan,
+    rebalance_plan as _rebalance_plan,
+)
+from mealmcp.core.planner import (
+    add_meal_slot,
+    create_meal_plan as _create_plan,
+    get_meal_plan,
+    get_meal_slots,
+    list_meal_plans,
+    remove_meal_slot,
+)
+from mealmcp.core.recipe_store import (
+    get_nutrition,
+    get_nutrition_batch,
+    get_recipe,
+    list_all_categories,
+    list_all_tags,
+)
 from mealmcp.core.schemas import (
     ComplementSuggestionSchema,
     GroceryListSchema,
     MacroSummarySchema,
     MacroTargetSchema,
-    MealCompositionSchema,
     MealComponentSchema,
+    MealCompositionSchema,
+    MealPlanDaySummarySchema,
     MealPlanSchema,
     MealPlanSummarySchema,
     MealSlotSchema,
@@ -32,6 +60,7 @@ from mealmcp.core.schemas import (
     RecipeDetailSchema,
     RecipeSearchPageSchema,
 )
+from mealmcp.core.search import hybrid_search, macro_distance_search
 
 mcp = FastMCP("MealMCP", description="Meal planning with macro optimization")
 
@@ -57,24 +86,20 @@ async def search_recipes_by_query(
     Returns slim results (no ingredients/instructions). Use
     get_recipe_detail(recipe_id) for full info.
     """
-    from mealmcp.core.search import hybrid_search
-
     cat = RecipeCategory(category) if category else None
     offset = int(cursor) if cursor else 0
 
-    # Generate embedding for semantic search
     embedding: list[float] | None = None
     try:
         from mealmcp.pipeline.embeddings import generate_embedding
         from mealmcp.core.models import Recipe
 
-        # Create a minimal recipe-like object for embedding
         dummy = Recipe(id="", family_id="", name=query, source="manual")  # type: ignore[arg-type]
         embedding = generate_embedding(dummy)
     except ImportError:
         pass  # sentence-transformers not available — FTS-only
 
-    result = hybrid_search(
+    result = await hybrid_search(
         query=query,
         embedding=embedding,
         category=cat,
@@ -84,29 +109,7 @@ async def search_recipes_by_query(
         offset=offset,
     )
 
-    return RecipeSearchPageSchema(
-        hits=[
-            {  # type: ignore[misc]
-                "id": h.id,
-                "name": h.name,
-                "category": h.category,
-                "tags": h.tags,
-                "prep_minutes": h.prep_minutes,
-                "cook_minutes": h.cook_minutes,
-                "macro_summary": MacroSummarySchema(
-                    calories=h.macro_summary.calories,
-                    protein_g=h.macro_summary.protein_g,
-                    carbs_g=h.macro_summary.carbs_g,
-                    fat_g=h.macro_summary.fat_g,
-                ),
-                "search_score": h.search_score,
-                "match_type": h.match_type,
-            }
-            for h in result.hits
-        ],
-        next_cursor=result.next_cursor,
-        total_count=result.total_count,
-    )
+    return RecipeSearchPageSchema.model_validate(result)
 
 
 @mcp.tool()
@@ -128,12 +131,10 @@ async def search_recipes_by_macros(
 
     Returns slim results — use get_recipe_detail(id) for full info.
     """
-    from mealmcp.core.search import macro_distance_search
-
     cat = RecipeCategory(category) if category else None
     offset = int(cursor) if cursor else 0
 
-    result = macro_distance_search(
+    result = await macro_distance_search(
         target_calories=target_calories,
         target_protein_g=target_protein_g,
         target_carbs_g=target_carbs_g,
@@ -145,29 +146,7 @@ async def search_recipes_by_macros(
         offset=offset,
     )
 
-    return RecipeSearchPageSchema(
-        hits=[
-            {  # type: ignore[misc]
-                "id": h.id,
-                "name": h.name,
-                "category": h.category,
-                "tags": h.tags,
-                "prep_minutes": h.prep_minutes,
-                "cook_minutes": h.cook_minutes,
-                "macro_summary": MacroSummarySchema(
-                    calories=h.macro_summary.calories,
-                    protein_g=h.macro_summary.protein_g,
-                    carbs_g=h.macro_summary.carbs_g,
-                    fat_g=h.macro_summary.fat_g,
-                ),
-                "search_score": h.search_score,
-                "match_type": h.match_type,
-            }
-            for h in result.hits
-        ],
-        next_cursor=result.next_cursor,
-        total_count=result.total_count,
-    )
+    return RecipeSearchPageSchema.model_validate(result)
 
 
 # ── Recipe Detail ─────────────────────────────────────────────────────────
@@ -177,49 +156,30 @@ async def search_recipes_by_macros(
 async def get_recipe_detail(recipe_id: str) -> RecipeDetailSchema | None:
     """Get complete recipe information: ingredients, instructions,
     full nutrition breakdown, and tags."""
-    from mealmcp.core.recipe_store import get_nutrition, get_recipe
-
-    recipe = get_recipe(recipe_id)
+    recipe = await get_recipe(recipe_id)
     if recipe is None:
         return None
 
-    nutrition = get_nutrition(recipe_id)
+    nutrition = await get_nutrition(recipe_id)
 
-    return RecipeDetailSchema(
-        id=recipe.id,
-        family_id=recipe.family_id,
-        name=recipe.name,
-        source=recipe.source,
-        ingredients=[
-            {"name": i.name, "quantity": i.quantity, "unit": i.unit,  # type: ignore[misc]
-             "raw_text": i.raw_text, "sub_recipe_id": i.sub_recipe_id}
-            for i in recipe.ingredients
-        ],
-        instructions=recipe.instructions,
-        servings=recipe.servings,
-        prep_minutes=recipe.prep_minutes,
-        cook_minutes=recipe.cook_minutes,
-        tags=recipe.tags,
-        category=recipe.category,
-        image_url=recipe.image_url,
-        nutrition=(
-            {  # type: ignore[arg-type]
-                "recipe_id": nutrition.recipe_id,
-                "calories": nutrition.calories,
-                "protein_g": nutrition.protein_g,
-                "carbs_g": nutrition.carbs_g,
-                "fat_g": nutrition.fat_g,
-                "fiber_g": nutrition.fiber_g,
-                "sodium_mg": nutrition.sodium_mg,
-                "source": nutrition.source,
-                "confidence": nutrition.confidence,
-                "computed_at": nutrition.computed_at,
-            }
-            if nutrition
-            else None
-        ),
-        created_at=recipe.created_at,
-        updated_at=recipe.updated_at,
+    return RecipeDetailSchema.model_validate(
+        {
+            "id": recipe.id,
+            "family_id": recipe.family_id,
+            "name": recipe.name,
+            "source": recipe.source,
+            "ingredients": recipe.ingredients,
+            "instructions": recipe.instructions,
+            "servings": recipe.servings,
+            "prep_minutes": recipe.prep_minutes,
+            "cook_minutes": recipe.cook_minutes,
+            "tags": recipe.tags,
+            "category": recipe.category,
+            "image_url": recipe.image_url,
+            "nutrition": nutrition,
+            "created_at": recipe.created_at,
+            "updated_at": recipe.updated_at,
+        }
     )
 
 
@@ -237,8 +197,6 @@ async def compose_meal(
     If member_id is provided, compares against their active macro target.
     Designed for iterative refinement — search, compose, adjust, repeat.
     """
-    from mealmcp.core.meal_composer import compose_meal as _compose
-
     meal_components = [
         MealComponent(
             recipe_id=str(c["recipe_id"]),
@@ -247,40 +205,9 @@ async def compose_meal(
         for c in components
     ]
 
-    result = _compose(meal_components, member_id, target_name)
+    result = await _compose(meal_components, member_id, target_name)
 
-    return MealCompositionSchema(
-        components=[
-            {  # type: ignore[misc]
-                "recipe_id": cn.recipe_id,
-                "recipe_name": cn.recipe_name,
-                "servings": cn.servings,
-                "macros": MacroSummarySchema(
-                    calories=cn.macros.calories,
-                    protein_g=cn.macros.protein_g,
-                    carbs_g=cn.macros.carbs_g,
-                    fat_g=cn.macros.fat_g,
-                ),
-            }
-            for cn in result.components
-        ],
-        totals=MacroSummarySchema(
-            calories=result.totals.calories,
-            protein_g=result.totals.protein_g,
-            carbs_g=result.totals.carbs_g,
-            fat_g=result.totals.fat_g,
-        ),
-        member_deltas={
-            mid: MacroSummarySchema(
-                calories=d.calories,
-                protein_g=d.protein_g,
-                carbs_g=d.carbs_g,
-                fat_g=d.fat_g,
-            )
-            for mid, d in result.member_deltas.items()
-        },
-        suggestions=result.suggestions,
-    )
+    return MealCompositionSchema.model_validate(result)
 
 
 @mcp.tool()
@@ -295,34 +222,12 @@ async def suggest_meal_complement(
 
     "I have grilled chicken — what side gets me closest to my targets?"
     """
-    from mealmcp.core.meal_composer import suggest_complements
-
     cat = RecipeCategory(complement_category)
-    results = suggest_complements(
+    results = await suggest_complements(
         existing_recipe_ids, existing_servings, member_id, cat, max_results
     )
 
-    return [
-        ComplementSuggestionSchema(
-            recipe_id=s.recipe_id,
-            recipe_name=s.recipe_name,
-            category=s.category,
-            suggested_servings=s.suggested_servings,
-            projected_totals=MacroSummarySchema(
-                calories=s.projected_totals.calories,
-                protein_g=s.projected_totals.protein_g,
-                carbs_g=s.projected_totals.carbs_g,
-                fat_g=s.projected_totals.fat_g,
-            ),
-            projected_deviation=MacroSummarySchema(
-                calories=s.projected_deviation.calories,
-                protein_g=s.projected_deviation.protein_g,
-                carbs_g=s.projected_deviation.carbs_g,
-                fat_g=s.projected_deviation.fat_g,
-            ),
-        )
-        for s in results
-    ]
+    return [ComplementSuggestionSchema.model_validate(s) for s in results]
 
 
 # ── Meal Plan CRUD ───────────────────────────────────────────────────────
@@ -336,25 +241,14 @@ async def create_meal_plan(
     days: int = 7,
 ) -> MealPlanSchema:
     """Create an empty meal plan scaffold."""
-    from datetime import date
-
-    from mealmcp.core.planner import create_meal_plan as _create
-
-    plan = _create(
+    plan = await _create_plan(
         family_id=family_id,
         name=name,
         start_date=date.fromisoformat(start_date),
         days=days,
     )
 
-    return MealPlanSchema(
-        id=plan.id,
-        family_id=plan.family_id,
-        name=plan.name,
-        start_date=plan.start_date,
-        days=plan.days,
-        created_at=plan.created_at,
-    )
+    return MealPlanSchema.model_validate(plan)
 
 
 @mcp.tool()
@@ -370,23 +264,11 @@ async def add_to_meal_plan(
 
     Returns the updated day with all slots.
     """
-    from mealmcp.core.planner import add_meal_slot, get_meal_slots
-
     mt = MealType(meal_type)
-    add_meal_slot(plan_id, day_offset, mt, recipe_id, servings, member_servings)
+    await add_meal_slot(plan_id, day_offset, mt, recipe_id, servings, member_servings)
 
-    slots = get_meal_slots(plan_id, day_offset)
-    return [
-        MealSlotSchema(
-            plan_id=s.plan_id,
-            day_offset=s.day_offset,
-            meal_type=s.meal_type,
-            recipe_id=s.recipe_id,
-            servings=s.servings,
-            member_servings=s.member_servings,
-        )
-        for s in slots
-    ]
+    slots = await get_meal_slots(plan_id, day_offset)
+    return [MealSlotSchema.model_validate(s) for s in slots]
 
 
 @mcp.tool()
@@ -403,12 +285,7 @@ async def get_meal_plan_summary(
     - "daily": per-day macro totals per member (~500 tokens)
     - "full": per-day, per-meal breakdown (~1500 tokens)
     """
-    from mealmcp.core.models import DetailLevel
-
-    from mealmcp.core.planner import get_meal_plan, get_meal_slots
-    from mealmcp.core.recipe_store import get_nutrition_batch
-
-    plan = get_meal_plan(plan_id)
+    plan = await get_meal_plan(plan_id)
     if plan is None:
         return MealPlanSummarySchema(
             plan_id=plan_id,
@@ -418,14 +295,10 @@ async def get_meal_plan_summary(
             detail_level=DetailLevel(detail_level),
         )
 
-    slots = get_meal_slots(plan_id, day_offset)
-    nutrition_map = get_nutrition_batch([s.recipe_id for s in slots])
-
-    # Compute daily summaries
-    from mealmcp.core.schemas import MealPlanDaySummarySchema
+    slots = await get_meal_slots(plan_id, day_offset)
+    nutrition_map = await get_nutrition_batch([s.recipe_id for s in slots])
 
     daily_summaries: list[MealPlanDaySummarySchema] = []
-    # Group by day
     days_data: dict[int, list[object]] = {}
     for s in slots:
         days_data.setdefault(s.day_offset, []).append(s)
@@ -449,7 +322,6 @@ async def get_meal_plan_summary(
             if nutr is None:
                 continue
 
-            # Aggregate for each member in member_servings, or use default
             members_to_track = (
                 [member_id] if member_id else list(s.member_servings.keys())
             )
@@ -478,7 +350,6 @@ async def get_meal_plan_summary(
             )
         )
 
-    # Weekly averages
     weekly_avgs: dict[str, MacroSummarySchema] = {}
     if daily_summaries:
         all_members: set[str] = set()
@@ -524,23 +395,9 @@ async def generate_grocery_list(
 
     Groups by category and sums quantities across all recipes and servings.
     """
-    from mealmcp.core.grocery import generate_grocery_list as _generate
+    result = await _generate_grocery(plan_id, merge_similar, exclude_pantry)
 
-    result = _generate(plan_id, merge_similar, exclude_pantry)
-
-    return GroceryListSchema(
-        plan_id=result.plan_id,
-        items=[
-            {  # type: ignore[misc]
-                "name": item.name,
-                "quantity": item.quantity,
-                "unit": item.unit,
-                "category": item.category,
-                "recipe_sources": item.recipe_sources,
-            }
-            for item in result.items
-        ],
-    )
+    return GroceryListSchema.model_validate(result)
 
 
 # ── Tags & Categories ────────────────────────────────────────────────────
@@ -549,17 +406,13 @@ async def generate_grocery_list(
 @mcp.tool()
 async def list_tags() -> list[str]:
     """List all available recipe tags for filtering."""
-    from mealmcp.core.recipe_store import list_all_tags
-
-    return list_all_tags()
+    return await list_all_tags()
 
 
 @mcp.tool()
 async def list_categories() -> list[str]:
     """List all available recipe categories."""
-    from mealmcp.core.recipe_store import list_all_categories
-
-    return list_all_categories()
+    return await list_all_categories()
 
 
 # ── Macro Targets ─────────────────────────────────────────────────────────
@@ -570,8 +423,6 @@ async def get_macro_targets(
     member_id: str | None = None,
 ) -> list[MacroTargetSchema]:
     """List macro target profiles, optionally filtered by member."""
-    from mealmcp.core.db import get_cursor
-
     if member_id:
         condition = " WHERE member_id = ?"
         params: list[str] = [member_id]
@@ -579,9 +430,9 @@ async def get_macro_targets(
         condition = ""
         params = []
 
-    with get_cursor() as cursor:
-        cursor.execute(f"SELECT * FROM macro_targets{condition}", params)
-        rows = cursor.fetchall()
+    async with get_db() as db:
+        cursor = await db.execute(f"SELECT * FROM macro_targets{condition}", params)
+        rows = await cursor.fetchall()
 
     return [
         MacroTargetSchema(
@@ -606,8 +457,6 @@ async def list_family_members(
     family_id: str | None = None,
 ) -> list[MemberSchema]:
     """List all members of a family with their active macro targets."""
-    from mealmcp.core.db import get_cursor
-
     if family_id:
         condition = " WHERE family_id = ?"
         params: list[str] = [family_id]
@@ -615,9 +464,9 @@ async def list_family_members(
         condition = ""
         params = []
 
-    with get_cursor() as cursor:
-        cursor.execute(f"SELECT * FROM members{condition}", params)
-        rows = cursor.fetchall()
+    async with get_db() as db:
+        cursor = await db.execute(f"SELECT * FROM members{condition}", params)
+        rows = await cursor.fetchall()
 
     return [
         MemberSchema(
@@ -642,21 +491,16 @@ async def set_macro_target(
     set_active: bool = True,
 ) -> MacroTargetSchema:
     """Create or update a macro target for a member."""
-    import uuid
-
-    from mealmcp.core.db import get_cursor
-
     target_id = str(uuid.uuid4())
 
-    with get_cursor() as cursor:
+    async with get_db() as db:
         if set_active:
-            # Deactivate other targets for this member
-            cursor.execute(
+            await db.execute(
                 "UPDATE macro_targets SET is_active = 0 WHERE member_id = ?",
                 (member_id,),
             )
 
-        cursor.execute(
+        await db.execute(
             """
             INSERT INTO macro_targets (id, member_id, name, calories, protein_g,
                                        carbs_g, fat_g, is_active)
@@ -695,10 +539,8 @@ async def optimize_meal(
 
     Returns num_alternatives solutions ranked by objective score.
     """
-    from mealmcp.core.optimizer import optimize_meal as _optimize
-
     mt = MealType(meal_type)
-    results = _optimize(
+    results = await _optimize_meal(
         member_ids=member_ids,
         meal_type=mt,
         candidate_recipe_ids=candidate_recipe_ids,
@@ -709,32 +551,7 @@ async def optimize_meal(
         num_alternatives=num_alternatives,
     )
 
-    return [
-        OptimizedMealSchema(
-            recipes=[
-                MealComponentSchema(recipe_id=r.recipe_id, servings=r.servings)
-                for r in om.recipes
-            ],
-            member_servings=om.member_servings,
-            member_macros={
-                mid: MacroSummarySchema(
-                    calories=m.calories, protein_g=m.protein_g,
-                    carbs_g=m.carbs_g, fat_g=m.fat_g,
-                )
-                for mid, m in om.member_macros.items()
-            },
-            member_deviation={
-                mid: MacroSummarySchema(
-                    calories=m.calories, protein_g=m.protein_g,
-                    carbs_g=m.carbs_g, fat_g=m.fat_g,
-                )
-                for mid, m in om.member_deviation.items()
-            },
-            objective_score=om.objective_score,
-            solve_time_ms=om.solve_time_ms,
-        )
-        for om in results
-    ]
+    return [OptimizedMealSchema.model_validate(om) for om in results]
 
 
 @mcp.tool()
@@ -745,30 +562,15 @@ async def optimize_plan(
     max_components_per_meal: int = 3,
 ) -> OptimizedPlanSchema:
     """Fill all empty slots in a meal plan optimally across the full week."""
-    from mealmcp.core.optimizer import optimize_plan as _optimize
-
     mt = [MealType(m) for m in meal_types] if meal_types else None
-    result = _optimize(
+    result = await _optimize_plan(
         plan_id=plan_id,
         member_ids=member_ids,
         meal_types=mt,
         max_components_per_meal=max_components_per_meal,
     )
 
-    return OptimizedPlanSchema(
-        plan_id=result.plan_id,
-        slots=[
-            MealSlotSchema(
-                plan_id=s.plan_id, day_offset=s.day_offset,
-                meal_type=s.meal_type, recipe_id=s.recipe_id,
-                servings=s.servings, member_servings=s.member_servings,
-            )
-            for s in result.slots
-        ],
-        total_deviation=result.total_deviation,
-        recipe_usage_counts=result.recipe_usage_counts,
-        solve_time_ms=result.solve_time_ms,
-    )
+    return OptimizedPlanSchema.model_validate(result)
 
 
 @mcp.tool()
@@ -783,35 +585,7 @@ async def rebalance_plan(
     - "adjust_servings": keep all recipes, solve for optimal serving sizes
     - "swap_sides": keep mains fixed, try swapping sides
     """
-    from mealmcp.core.optimizer import rebalance_plan as _rebalance
-
     strat = RebalanceStrategy(strategy)
-    result = _rebalance(plan_id, member_id, strat)
+    result = await _rebalance_plan(plan_id, member_id, strat)
 
-    return RebalancedPlanSchema(
-        plan_id=result.plan_id,
-        member_id=result.member_id,
-        strategy=result.strategy,
-        before_macros={
-            d: MacroSummarySchema(
-                calories=m.calories, protein_g=m.protein_g,
-                carbs_g=m.carbs_g, fat_g=m.fat_g,
-            )
-            for d, m in result.before_macros.items()
-        },
-        after_macros={
-            d: MacroSummarySchema(
-                calories=m.calories, protein_g=m.protein_g,
-                carbs_g=m.carbs_g, fat_g=m.fat_g,
-            )
-            for d, m in result.after_macros.items()
-        },
-        adjusted_slots=[
-            MealSlotSchema(
-                plan_id=s.plan_id, day_offset=s.day_offset,
-                meal_type=s.meal_type, recipe_id=s.recipe_id,
-                servings=s.servings, member_servings=s.member_servings,
-            )
-            for s in result.adjusted_slots
-        ],
-    )
+    return RebalancedPlanSchema.model_validate(result)

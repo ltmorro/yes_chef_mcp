@@ -5,9 +5,11 @@ Uses Reciprocal Rank Fusion (RRF) to merge ranked lists from both sources.
 
 from __future__ import annotations
 
+import json
+import math
 import struct
 
-from mealmcp.core.db import get_cursor
+from mealmcp.core.db import get_db
 from mealmcp.core.models import (
     MacroSummary,
     MatchType,
@@ -23,10 +25,10 @@ def _rrf_score(rank: int, k: int = 60) -> float:
     return 1.0 / (k + rank)
 
 
-def _fts_search(query: str, limit: int) -> list[tuple[str, int]]:
+async def _fts_search(query: str, limit: int) -> list[tuple[str, int]]:
     """Full-text search returning (recipe_id, rank) pairs."""
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             """
             SELECT recipe_id, rank
             FROM recipes_fts
@@ -35,18 +37,19 @@ def _fts_search(query: str, limit: int) -> list[tuple[str, int]]:
             LIMIT ?
             """,
             (query, limit),
-        )
-        return [(str(row["recipe_id"]), int(str(row["rank"]))) for row in cursor.fetchall()]
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [(str(row["recipe_id"]), int(str(row["rank"]))) for row in rows]
 
 
-def _vector_search(
+async def _vector_search(
     embedding: list[float],
     limit: int,
 ) -> list[tuple[str, float]]:
     """Vector similarity search returning (recipe_id, distance) pairs."""
     vec_blob = struct.pack(f"{len(embedding)}f", *embedding)
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             """
             SELECT recipe_id, distance
             FROM vec_recipes
@@ -55,28 +58,29 @@ def _vector_search(
             LIMIT ?
             """,
             (vec_blob, limit),
-        )
-        return [(str(row["recipe_id"]), float(str(row["distance"]))) for row in cursor.fetchall()]
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [(str(row["recipe_id"]), float(str(row["distance"]))) for row in rows]
 
 
-def _fetch_recipe_metadata(
+async def _fetch_recipe_metadata(
     recipe_ids: list[str],
 ) -> dict[str, dict[str, str | int | None]]:
     """Fetch basic recipe metadata for search results."""
     if not recipe_ids:
         return {}
     placeholders = ",".join("?" for _ in recipe_ids)
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             f"SELECT id, name, category, tags, prep_minutes, cook_minutes "
             f"FROM recipes WHERE id IN ({placeholders})",
             recipe_ids,
-        )
-        rows = cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
     return {str(row["id"]): dict(row) for row in rows}
 
 
-def hybrid_search(
+async def hybrid_search(
     query: str,
     embedding: list[float] | None = None,
     category: RecipeCategory | None = None,
@@ -97,14 +101,14 @@ def hybrid_search(
     fetch_limit = max_results * 4  # Over-fetch for filtering
 
     # FTS5 keyword search
-    fts_results = _fts_search(query, fetch_limit)
+    fts_results = await _fts_search(query, fetch_limit)
     fts_ids = {rid for rid, _ in fts_results}
 
     # Vector similarity search (if embedding provided)
     vec_results: list[tuple[str, float]] = []
     vec_ids: set[str] = set()
     if embedding:
-        vec_results = _vector_search(embedding, fetch_limit)
+        vec_results = await _vector_search(embedding, fetch_limit)
         vec_ids = {rid for rid, _ in vec_results}
 
     # Reciprocal Rank Fusion
@@ -127,12 +131,10 @@ def hybrid_search(
     all_ids = sorted(scores, key=lambda rid: scores[rid], reverse=True)
 
     # Fetch metadata and nutrition for candidates
-    metadata = _fetch_recipe_metadata(all_ids)
-    nutrition_map = get_nutrition_batch(all_ids)
+    metadata = await _fetch_recipe_metadata(all_ids)
+    nutrition_map = await get_nutrition_batch(all_ids)
 
     # Filter and build results
-    import json
-
     hits: list[RecipeSearchHit] = []
     for rid in all_ids:
         meta = metadata.get(rid)
@@ -196,7 +198,7 @@ def hybrid_search(
     )
 
 
-def macro_distance_search(
+async def macro_distance_search(
     target_calories: float | None = None,
     target_protein_g: float | None = None,
     target_carbs_g: float | None = None,
@@ -208,9 +210,6 @@ def macro_distance_search(
     offset: int = 0,
 ) -> RecipeSearchPage:
     """Find recipes closest to target macros using weighted Euclidean distance."""
-    import json
-    import math
-
     # Build query conditions
     conditions: list[str] = []
     params: list[str | float] = []
@@ -219,10 +218,17 @@ def macro_distance_search(
         conditions.append("r.category = ?")
         params.append(category.value)
 
+    if tags:
+        placeholders = ",".join("?" for _ in tags)
+        conditions.append(
+            f"EXISTS (SELECT 1 FROM json_each(r.tags) AS jt WHERE jt.value IN ({placeholders}))"
+        )
+        params.extend(tags)
+
     where = f" AND {' AND '.join(conditions)}" if conditions else ""
 
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             f"""
             SELECT r.id, r.name, r.category, r.tags, r.prep_minutes, r.cook_minutes,
                    n.calories, n.protein_g, n.carbs_g, n.fat_g
@@ -231,19 +237,13 @@ def macro_distance_search(
             WHERE 1=1{where}
             """,
             params,
-        )
-        rows = cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
 
     # Compute distances
     scored: list[tuple[dict[str, str | int | float | None], float]] = []
     for row in rows:
         row_dict = dict(row)
-
-        # Tag filter
-        if tags:
-            recipe_tags: list[str] = json.loads(str(row_dict.get("tags", "[]")))
-            if not set(tags).intersection(recipe_tags):
-                continue
 
         dist_sq = 0.0
         count = 0

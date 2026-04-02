@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
-from mealmcp.core.db import configure_db_path, close_connection, get_connection
+from mealmcp.core.db import configure_db_path, get_db
 from mealmcp.core.models import (
     Ingredient,
     Nutrition,
@@ -24,23 +24,20 @@ from mealmcp.core.recipe_store import (
 
 
 @pytest.fixture(autouse=True)
-def _fresh_db(tmp_path: Path) -> None:
-    """Use a fresh in-memory-like temp database for each test."""
+async def _fresh_db(tmp_path: Path) -> None:
+    """Use a fresh temp database for each test."""
     db_path = tmp_path / "test.db"
     configure_db_path(db_path)
-    get_connection()
-    yield  # type: ignore[misc]
-    close_connection()
+    async with get_db():
+        pass
 
 
 @pytest.fixture()
-def sample_family_id() -> str:
+async def sample_family_id() -> str:
     """Create a sample family and return its ID."""
-    from mealmcp.core.db import get_cursor
-
     family_id = "family-test-1"
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        await db.execute(
             "INSERT INTO families (id, name, provider) VALUES (?, ?, ?)",
             (family_id, "Test Family", "csv"),
         )
@@ -48,7 +45,7 @@ def sample_family_id() -> str:
 
 
 @pytest.fixture()
-def sample_recipes(sample_family_id: str) -> list[Recipe]:
+async def sample_recipes(sample_family_id: str) -> list[Recipe]:
     """Create and return sample recipes with nutrition data."""
     recipes = [
         Recipe(
@@ -153,10 +150,10 @@ def sample_recipes(sample_family_id: str) -> list[Recipe]:
     ]
 
     for recipe in recipes:
-        upsert_recipe(recipe)
-        index_recipe_fts(recipe)
+        await upsert_recipe(recipe)
+        await index_recipe_fts(recipe)
 
     for nutr in nutritions:
-        upsert_nutrition(nutr)
+        await upsert_nutrition(nutr)
 
     return recipes

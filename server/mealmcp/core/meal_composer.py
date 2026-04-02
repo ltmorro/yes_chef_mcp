@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mealmcp.core.db import get_cursor
+from mealmcp.core.db import get_db
 from mealmcp.core.models import (
     ComplementSuggestion,
     ComponentNutrition,
@@ -16,51 +16,51 @@ from mealmcp.core.recipe_store import get_nutrition, get_recipe
 from mealmcp.core.search import macro_distance_search
 
 
-def _get_active_target(member_id: str) -> MacroTarget | None:
+async def _get_active_target(member_id: str) -> MacroTarget | None:
     """Fetch the active macro target for a member."""
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             "SELECT * FROM macro_targets WHERE member_id = ? AND is_active = 1",
             (member_id,),
-        )
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        return MacroTarget(
-            id=str(row["id"]),
-            member_id=str(row["member_id"]),
-            name=str(row["name"]),
-            calories=float(str(row["calories"])),
-            protein_g=float(str(row["protein_g"])),
-            carbs_g=float(str(row["carbs_g"])),
-            fat_g=float(str(row["fat_g"])),
-            is_active=True,
-        )
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row is None:
+                return None
+            return MacroTarget(
+                id=str(row["id"]),
+                member_id=str(row["member_id"]),
+                name=str(row["name"]),
+                calories=float(str(row["calories"])),
+                protein_g=float(str(row["protein_g"])),
+                carbs_g=float(str(row["carbs_g"])),
+                fat_g=float(str(row["fat_g"])),
+                is_active=True,
+            )
 
 
-def _get_named_target(member_id: str, target_name: str) -> MacroTarget | None:
+async def _get_named_target(member_id: str, target_name: str) -> MacroTarget | None:
     """Fetch a specific named macro target for a member."""
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             "SELECT * FROM macro_targets WHERE member_id = ? AND name = ?",
             (member_id, target_name),
-        )
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        return MacroTarget(
-            id=str(row["id"]),
-            member_id=str(row["member_id"]),
-            name=str(row["name"]),
-            calories=float(str(row["calories"])),
-            protein_g=float(str(row["protein_g"])),
-            carbs_g=float(str(row["carbs_g"])),
-            fat_g=float(str(row["fat_g"])),
-            is_active=bool(row["is_active"]),
-        )
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row is None:
+                return None
+            return MacroTarget(
+                id=str(row["id"]),
+                member_id=str(row["member_id"]),
+                name=str(row["name"]),
+                calories=float(str(row["calories"])),
+                protein_g=float(str(row["protein_g"])),
+                carbs_g=float(str(row["carbs_g"])),
+                fat_g=float(str(row["fat_g"])),
+                is_active=bool(row["is_active"]),
+            )
 
 
-def compose_meal(
+async def compose_meal(
     components: list[MealComponent],
     member_id: str | None = None,
     target_name: str | None = None,
@@ -77,11 +77,11 @@ def compose_meal(
     total_fat = 0.0
 
     for component in components:
-        recipe = get_recipe(component.recipe_id)
+        recipe = await get_recipe(component.recipe_id)
         if recipe is None:
             continue
 
-        nutrition = get_nutrition(component.recipe_id)
+        nutrition = await get_nutrition(component.recipe_id)
         if nutrition is None:
             comp_nutritions.append(
                 ComponentNutrition(
@@ -129,9 +129,9 @@ def compose_meal(
 
     if member_id:
         target = (
-            _get_named_target(member_id, target_name)
+            await _get_named_target(member_id, target_name)
             if target_name
-            else _get_active_target(member_id)
+            else await _get_active_target(member_id)
         )
         if target:
             delta = MacroSummary(
@@ -162,7 +162,7 @@ def compose_meal(
     )
 
 
-def suggest_complements(
+async def suggest_complements(
     existing_recipe_ids: list[str],
     existing_servings: list[float],
     member_id: str,
@@ -175,7 +175,7 @@ def suggest_complements(
     active target, then searches for recipes in the complement category that
     best fill that gap.
     """
-    target = _get_active_target(member_id)
+    target = await _get_active_target(member_id)
     if target is None:
         return []
 
@@ -184,7 +184,7 @@ def suggest_complements(
         MealComponent(recipe_id=rid, servings=s)
         for rid, s in zip(existing_recipe_ids, existing_servings, strict=True)
     ]
-    current = compose_meal(components)
+    current = await compose_meal(components)
 
     # Compute gap
     gap_cal = target.calories - current.totals.calories
@@ -193,7 +193,7 @@ def suggest_complements(
     gap_fat = target.fat_g - current.totals.fat_g
 
     # Search for recipes near the gap
-    results = macro_distance_search(
+    results = await macro_distance_search(
         target_calories=max(gap_cal, 0),
         target_protein_g=max(gap_protein, 0),
         target_carbs_g=max(gap_carbs, 0),

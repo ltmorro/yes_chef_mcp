@@ -6,7 +6,7 @@ import json
 import uuid
 from datetime import date, datetime
 
-from mealmcp.core.db import get_cursor
+from mealmcp.core.db import get_db
 from mealmcp.core.models import (
     MealPlan,
     MealSlot,
@@ -14,7 +14,7 @@ from mealmcp.core.models import (
 )
 
 
-def create_meal_plan(
+async def create_meal_plan(
     family_id: str,
     name: str,
     start_date: date,
@@ -24,8 +24,8 @@ def create_meal_plan(
     plan_id = str(uuid.uuid4())
     now = datetime.now()
 
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        await db.execute(
             """
             INSERT INTO meal_plans (id, family_id, name, start_date, days, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -43,38 +43,38 @@ def create_meal_plan(
     )
 
 
-def get_meal_plan(plan_id: str) -> MealPlan | None:
+async def get_meal_plan(plan_id: str) -> MealPlan | None:
     """Fetch a meal plan by ID."""
-    with get_cursor() as cursor:
-        cursor.execute("SELECT * FROM meal_plans WHERE id = ?", (plan_id,))
-        row = cursor.fetchone()
-        if row is None:
-            return None
+    async with get_db() as db:
+        async with db.execute("SELECT * FROM meal_plans WHERE id = ?", (plan_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row is None:
+                return None
 
-        created_str = row["created_at"]
-        return MealPlan(
-            id=str(row["id"]),
-            family_id=str(row["family_id"]),
-            name=str(row["name"]),
-            start_date=date.fromisoformat(str(row["start_date"])),
-            days=int(str(row["days"])),
-            created_at=(
-                datetime.fromisoformat(str(created_str)) if created_str else None
-            ),
-        )
+            created_str = row["created_at"]
+            return MealPlan(
+                id=str(row["id"]),
+                family_id=str(row["family_id"]),
+                name=str(row["name"]),
+                start_date=date.fromisoformat(str(row["start_date"])),
+                days=int(str(row["days"])),
+                created_at=(
+                    datetime.fromisoformat(str(created_str)) if created_str else None
+                ),
+            )
 
 
-def list_meal_plans(family_id: str | None = None) -> list[MealPlan]:
+async def list_meal_plans(family_id: str | None = None) -> list[MealPlan]:
     """List meal plans, optionally filtered by family."""
     condition = " WHERE family_id = ?" if family_id else ""
     params: list[str] = [family_id] if family_id else []
 
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             f"SELECT * FROM meal_plans{condition} ORDER BY start_date DESC",
             params,
-        )
-        rows = cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
 
     plans: list[MealPlan] = []
     for row in rows:
@@ -94,7 +94,7 @@ def list_meal_plans(family_id: str | None = None) -> list[MealPlan]:
     return plans
 
 
-def add_meal_slot(
+async def add_meal_slot(
     plan_id: str,
     day_offset: int,
     meal_type: MealType,
@@ -104,8 +104,8 @@ def add_meal_slot(
 ) -> MealSlot:
     """Add a recipe to a meal plan slot."""
     ms = member_servings or {}
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        await db.execute(
             """
             INSERT INTO meal_slots (plan_id, day_offset, meal_type, recipe_id,
                                     servings, member_servings)
@@ -127,7 +127,7 @@ def add_meal_slot(
     )
 
 
-def get_meal_slots(
+async def get_meal_slots(
     plan_id: str,
     day_offset: int | None = None,
 ) -> list[MealSlot]:
@@ -141,12 +141,12 @@ def get_meal_slots(
 
     where = " AND ".join(conditions)
 
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             f"SELECT * FROM meal_slots WHERE {where} ORDER BY day_offset, meal_type",
             params,
-        )
-        rows = cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
 
     return [
         MealSlot(
@@ -161,15 +161,15 @@ def get_meal_slots(
     ]
 
 
-def remove_meal_slot(
+async def remove_meal_slot(
     plan_id: str,
     day_offset: int,
     meal_type: MealType,
     recipe_id: str,
 ) -> bool:
     """Remove a recipe from a meal plan slot. Returns True if removed."""
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        cursor = await db.execute(
             """
             DELETE FROM meal_slots
             WHERE plan_id = ? AND day_offset = ? AND meal_type = ? AND recipe_id = ?
@@ -179,9 +179,9 @@ def remove_meal_slot(
         return cursor.rowcount > 0
 
 
-def delete_meal_plan(plan_id: str) -> bool:
+async def delete_meal_plan(plan_id: str) -> bool:
     """Delete a meal plan and all its slots. Returns True if deleted."""
-    with get_cursor() as cursor:
-        cursor.execute("DELETE FROM meal_slots WHERE plan_id = ?", (plan_id,))
-        cursor.execute("DELETE FROM meal_plans WHERE id = ?", (plan_id,))
+    async with get_db() as db:
+        await db.execute("DELETE FROM meal_slots WHERE plan_id = ?", (plan_id,))
+        cursor = await db.execute("DELETE FROM meal_plans WHERE id = ?", (plan_id,))
         return cursor.rowcount > 0

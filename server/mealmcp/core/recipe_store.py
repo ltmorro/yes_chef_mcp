@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from mealmcp.core.db import get_cursor
+import aiosqlite
+
+from mealmcp.core.db import get_db
 from mealmcp.core.models import (
     Ingredient,
     Nutrition,
@@ -16,7 +18,7 @@ from mealmcp.core.models import (
 )
 
 
-def _row_to_recipe(row: dict[str, object]) -> Recipe:
+def _row_to_recipe(row: aiosqlite.Row) -> Recipe:
     """Convert a database row to a Recipe dataclass."""
     raw_ingredients = json.loads(str(row["ingredients"]))
     ingredients = [
@@ -55,7 +57,7 @@ def _row_to_recipe(row: dict[str, object]) -> Recipe:
     )
 
 
-def _row_to_nutrition(row: dict[str, object]) -> Nutrition:
+def _row_to_nutrition(row: aiosqlite.Row) -> Nutrition:
     """Convert a database row to a Nutrition dataclass."""
     computed_str = row["computed_at"]
     return Nutrition(
@@ -72,7 +74,7 @@ def _row_to_nutrition(row: dict[str, object]) -> Nutrition:
     )
 
 
-def upsert_recipe(recipe: Recipe) -> None:
+async def upsert_recipe(recipe: Recipe) -> None:
     """Insert or update a recipe."""
     ingredients_json = json.dumps(
         [
@@ -88,8 +90,8 @@ def upsert_recipe(recipe: Recipe) -> None:
     )
     tags_json = json.dumps(recipe.tags)
 
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        await db.execute(
             """
             INSERT INTO recipes (
                 id, family_id, name, source, ingredients, instructions,
@@ -128,17 +130,17 @@ def upsert_recipe(recipe: Recipe) -> None:
         )
 
 
-def get_recipe(recipe_id: str) -> Recipe | None:
+async def get_recipe(recipe_id: str) -> Recipe | None:
     """Fetch a single recipe by ID."""
-    with get_cursor() as cursor:
-        cursor.execute("SELECT * FROM recipes WHERE id = ?", (recipe_id,))
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        return _row_to_recipe(dict(row))
+    async with get_db() as db:
+        async with db.execute("SELECT * FROM recipes WHERE id = ?", (recipe_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row is None:
+                return None
+            return _row_to_recipe(row)
 
 
-def list_recipes(
+async def list_recipes(
     family_id: str | None = None,
     category: RecipeCategory | None = None,
     tags: list[str] | None = None,
@@ -150,44 +152,47 @@ def list_recipes(
     params: list[str | int] = []
 
     if family_id:
-        conditions.append("family_id = ?")
+        conditions.append("r.family_id = ?")
         params.append(family_id)
     if category:
-        conditions.append("category = ?")
+        conditions.append("r.category = ?")
         params.append(category.value)
+    if tags:
+        placeholders = ",".join("?" for _ in tags)
+        conditions.append(
+            f"""EXISTS (
+                SELECT 1 FROM json_each(r.tags) AS jt
+                WHERE jt.value IN ({placeholders})
+            )"""
+        )
+        params.extend(tags)
 
     where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
-    query = f"SELECT * FROM recipes{where} ORDER BY name LIMIT ? OFFSET ?"
+    query = f"SELECT r.* FROM recipes r{where} ORDER BY r.name LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
-    with get_cursor() as cursor:
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
+    async with get_db() as db:
+        async with db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
 
-    recipes = [_row_to_recipe(dict(row)) for row in rows]
-
-    if tags:
-        tag_set = set(tags)
-        recipes = [r for r in recipes if tag_set.intersection(r.tags)]
-
-    return recipes
+    return [_row_to_recipe(row) for row in rows]
 
 
-def delete_recipe(recipe_id: str) -> bool:
+async def delete_recipe(recipe_id: str) -> bool:
     """Delete a recipe. Returns True if deleted."""
-    with get_cursor() as cursor:
-        cursor.execute("DELETE FROM nutrition WHERE recipe_id = ?", (recipe_id,))
-        cursor.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
+    async with get_db() as db:
+        await db.execute("DELETE FROM nutrition WHERE recipe_id = ?", (recipe_id,))
+        cursor = await db.execute("DELETE FROM recipes WHERE id = ?", (recipe_id,))
         return cursor.rowcount > 0
 
 
 # ── Nutrition ─────────────────────────────────────────────────────────────
 
 
-def upsert_nutrition(nutrition: Nutrition) -> None:
+async def upsert_nutrition(nutrition: Nutrition) -> None:
     """Insert or update nutrition data for a recipe."""
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        await db.execute(
             """
             INSERT INTO nutrition (
                 recipe_id, calories, protein_g, carbs_g, fat_g,
@@ -219,43 +224,43 @@ def upsert_nutrition(nutrition: Nutrition) -> None:
         )
 
 
-def get_nutrition(recipe_id: str) -> Nutrition | None:
+async def get_nutrition(recipe_id: str) -> Nutrition | None:
     """Fetch nutrition data for a recipe."""
-    with get_cursor() as cursor:
-        cursor.execute("SELECT * FROM nutrition WHERE recipe_id = ?", (recipe_id,))
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        return _row_to_nutrition(dict(row))
+    async with get_db() as db:
+        async with db.execute("SELECT * FROM nutrition WHERE recipe_id = ?", (recipe_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row is None:
+                return None
+            return _row_to_nutrition(row)
 
 
-def get_nutrition_batch(recipe_ids: list[str]) -> dict[str, Nutrition]:
+async def get_nutrition_batch(recipe_ids: list[str]) -> dict[str, Nutrition]:
     """Fetch nutrition data for multiple recipes."""
     if not recipe_ids:
         return {}
     placeholders = ",".join("?" for _ in recipe_ids)
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             f"SELECT * FROM nutrition WHERE recipe_id IN ({placeholders})",
             recipe_ids,
-        )
-        rows = cursor.fetchall()
-    return {str(row["recipe_id"]): _row_to_nutrition(dict(row)) for row in rows}
+        ) as cursor:
+            rows = await cursor.fetchall()
+    return {str(row["recipe_id"]): _row_to_nutrition(row) for row in rows}
 
 
 # ── FTS Indexing ──────────────────────────────────────────────────────────
 
 
-def index_recipe_fts(recipe: Recipe) -> None:
+async def index_recipe_fts(recipe: Recipe) -> None:
     """Index a recipe for full-text search."""
     ingredient_names = " ".join(ing.name for ing in recipe.ingredients)
-    with get_cursor() as cursor:
+    async with get_db() as db:
         # Delete existing entry
-        cursor.execute(
+        await db.execute(
             "DELETE FROM recipes_fts WHERE recipe_id = ?",
             (recipe.id,),
         )
-        cursor.execute(
+        await db.execute(
             "INSERT INTO recipes_fts (recipe_id, name, ingredient_names) VALUES (?, ?, ?)",
             (recipe.id, recipe.name, ingredient_names),
         )
@@ -264,13 +269,13 @@ def index_recipe_fts(recipe: Recipe) -> None:
 # ── Vector Embeddings ────────────────────────────────────────────────────
 
 
-def upsert_embedding(recipe_id: str, embedding: list[float]) -> None:
+async def upsert_embedding(recipe_id: str, embedding: list[float]) -> None:
     """Store or update a recipe embedding in the vec_recipes table."""
     import struct
 
     vec_blob = struct.pack(f"{len(embedding)}f", *embedding)
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        await db.execute(
             """
             INSERT INTO vec_recipes (recipe_id, embedding)
             VALUES (?, ?)
@@ -283,32 +288,34 @@ def upsert_embedding(recipe_id: str, embedding: list[float]) -> None:
 # ── Tags & Categories ────────────────────────────────────────────────────
 
 
-def list_all_tags(family_id: str | None = None) -> list[str]:
+async def list_all_tags(family_id: str | None = None) -> list[str]:
     """List all unique tags across recipes."""
-    condition = " WHERE family_id = ?" if family_id else ""
+    condition = " WHERE r.family_id = ?" if family_id else ""
     params: list[str] = [family_id] if family_id else []
 
-    with get_cursor() as cursor:
-        cursor.execute(f"SELECT tags FROM recipes{condition}", params)
-        rows = cursor.fetchall()
+    query = f"""
+        SELECT DISTINCT jt.value AS tag
+        FROM recipes r, json_each(r.tags) AS jt
+        {condition}
+        ORDER BY tag
+    """
 
-    tag_set: set[str] = set()
-    for row in rows:
-        tags: list[str] = json.loads(str(row["tags"]))
-        tag_set.update(tags)
-    return sorted(tag_set)
+    async with get_db() as db:
+        async with db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+    return [str(row["tag"]) for row in rows]
 
 
-def list_all_categories(family_id: str | None = None) -> list[str]:
+async def list_all_categories(family_id: str | None = None) -> list[str]:
     """List all unique categories across recipes."""
     condition = " WHERE family_id = ?" if family_id else ""
     params: list[str] = [family_id] if family_id else []
 
-    with get_cursor() as cursor:
-        cursor.execute(
+    async with get_db() as db:
+        async with db.execute(
             f"SELECT DISTINCT category FROM recipes{condition} "
             "WHERE category IS NOT NULL ORDER BY category",
             params,
-        )
-        rows = cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
     return [str(row["category"]) for row in rows]

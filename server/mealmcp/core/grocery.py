@@ -21,7 +21,7 @@ def _normalize_ingredient_name(name: str) -> str:
     return name.strip().lower()
 
 
-def generate_grocery_list(
+async def generate_grocery_list(
     plan_id: str,
     merge_similar: bool = True,
     exclude_pantry: bool = True,
@@ -31,14 +31,14 @@ def generate_grocery_list(
     Sums quantities across recipes, groups by ingredient category,
     and optionally merges similar ingredients and excludes pantry staples.
     """
-    slots = get_meal_slots(plan_id)
+    slots = await get_meal_slots(plan_id)
 
     # Aggregate ingredients across all slots
     # Key: normalized ingredient name → accumulated data
     aggregated: dict[str, _AggItem] = defaultdict(_AggItem)
 
     for slot in slots:
-        recipe = get_recipe(slot.recipe_id)
+        recipe = await get_recipe(slot.recipe_id)
         if recipe is None:
             continue
 

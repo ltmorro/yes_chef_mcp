@@ -1,20 +1,22 @@
-"""SQLite database connection pool and schema management.
+"""Async SQLite database connection and schema management.
 
-Uses WAL mode for concurrent readers with a single writer.
-Loads sqlite-vec extension for vector similarity search.
+Uses aiosqlite for non-blocking async access. WAL mode for concurrent
+readers with a single writer. Loads sqlite-vec extension for vector search.
 """
 
 from __future__ import annotations
 
+import contextlib
 import sqlite3
-from contextlib import contextmanager
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Generator
 
+import aiosqlite
 import sqlite_vec
 
 _DB_PATH: Path = Path("/data/mealmcp.db")
-_connection: sqlite3.Connection | None = None
+_schema_initialized: bool = False
 
 SCHEMA_VERSION = 1
 
@@ -135,88 +137,87 @@ CREATE VIRTUAL TABLE IF NOT EXISTS recipes_fts USING fts5(
     recipe_id UNINDEXED,
     name,
     ingredient_names,
-    content='',
     tokenize='porter unicode61'
 );
 """
 
 
-def _load_extensions(conn: sqlite3.Connection) -> None:
+def _load_extensions(conn: aiosqlite.Connection) -> None:
     """Load sqlite-vec extension for vector similarity search."""
-    conn.enable_load_extension(True)
-    sqlite_vec.load(conn)
-    conn.enable_load_extension(False)
+    raw: sqlite3.Connection = conn._conn  # noqa: SLF001
+    raw.enable_load_extension(True)
+    sqlite_vec.load(raw)
+    raw.enable_load_extension(False)
 
 
-def _init_connection(conn: sqlite3.Connection) -> None:
-    """Configure connection settings and ensure schema exists."""
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("PRAGMA busy_timeout=5000")
+async def _init_connection(conn: aiosqlite.Connection) -> None:
+    """Configure connection settings and ensure schema exists.
+
+    PRAGMAs and extensions are set on every connection. Schema DDL only
+    runs once per DB path (guarded by ``_schema_initialized``).
+    """
+    await conn.execute("PRAGMA journal_mode=WAL")
+    await conn.execute("PRAGMA foreign_keys=ON")
+    await conn.execute("PRAGMA busy_timeout=5000")
 
     _load_extensions(conn)
 
-    conn.executescript(SCHEMA_SQL)
-    conn.executescript(FTS_SCHEMA_SQL)
+    global _schema_initialized
+    if not _schema_initialized:
+        await conn.executescript(SCHEMA_SQL)
+        await conn.executescript(FTS_SCHEMA_SQL)
 
-    # Initialize vec_recipes virtual table for embeddings (384-dim float vectors)
-    try:
-        conn.execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS vec_recipes USING vec0("
-            "  recipe_id TEXT PRIMARY KEY,"
-            "  embedding float[384]"
-            ")"
-        )
-    except sqlite3.OperationalError:
-        # Table already exists with different schema — skip
-        pass
+        # Initialize vec_recipes virtual table for embeddings (384-dim float vectors)
+        with contextlib.suppress(sqlite3.OperationalError):
+            await conn.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS vec_recipes USING vec0("
+                "  recipe_id TEXT PRIMARY KEY,"
+                "  embedding float[384]"
+                ")"
+            )
 
-    # Track schema version
-    row = conn.execute(
-        "SELECT COUNT(*) FROM schema_version"
-    ).fetchone()
-    if row and row[0] == 0:
-        conn.execute(
-            "INSERT INTO schema_version (version) VALUES (?)",
-            (SCHEMA_VERSION,),
-        )
-    conn.commit()
+        # Track schema version
+        async with conn.execute("SELECT COUNT(*) FROM schema_version") as cursor:
+            row = await cursor.fetchone()
+            if row and row[0] == 0:
+                await conn.execute(
+                    "INSERT INTO schema_version (version) VALUES (?)",
+                    (SCHEMA_VERSION,),
+                )
+        await conn.commit()
+        _schema_initialized = True
 
 
 def configure_db_path(path: Path) -> None:
     """Override the default database path. Must be called before get_connection."""
-    global _DB_PATH, _connection
+    global _DB_PATH, _schema_initialized
     _DB_PATH = path
-    _connection = None
+    _schema_initialized = False
 
 
-def get_connection() -> sqlite3.Connection:
-    """Get or create the singleton database connection."""
-    global _connection
-    if _connection is None:
-        _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _connection = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
-        _connection.row_factory = sqlite3.Row
-        _init_connection(_connection)
-    return _connection
+async def get_connection() -> aiosqlite.Connection:
+    """Create a new async database connection.
+
+    Each caller gets its own connection — no shared singleton.
+    Connections are lightweight in WAL mode; aiosqlite runs each
+    on its own background thread so they don't block the event loop.
+    """
+    _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = await aiosqlite.connect(str(_DB_PATH), check_same_thread=False)
+    conn.row_factory = aiosqlite.Row
+    await _init_connection(conn)
+    return conn
 
 
-@contextmanager
-def get_cursor() -> Generator[sqlite3.Cursor, None, None]:
-    """Context manager for a database cursor with automatic commit/rollback."""
-    conn = get_connection()
-    cursor = conn.cursor()
+@asynccontextmanager
+async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
+    """Async context manager for a database connection with auto-commit/rollback."""
+    conn = await get_connection()
     try:
-        yield cursor
-        conn.commit()
+        yield conn
+        await conn.commit()
     except Exception:
-        conn.rollback()
+        await conn.rollback()
         raise
-
-
-def close_connection() -> None:
-    """Close the database connection."""
-    global _connection
-    if _connection is not None:
-        _connection.close()
-        _connection = None
+    finally:
+        await conn.close()

@@ -56,6 +56,17 @@ def generate_embedding(recipe: Recipe) -> list[float]:
     return [float(x) for x in embedding.tolist()]
 
 
+def generate_query_embedding(query: str) -> list[float]:
+    """Generate a 384-dimensional embedding for a search query string."""
+    from sentence_transformers import SentenceTransformer
+
+    model = _get_model()
+    assert isinstance(model, SentenceTransformer)
+
+    embedding = model.encode(query, convert_to_numpy=True)
+    return [float(x) for x in embedding.tolist()]
+
+
 def generate_embeddings_batch(recipes: list[Recipe]) -> list[list[float]]:
     """Generate embeddings for multiple recipes in a batch."""
     from sentence_transformers import SentenceTransformer
