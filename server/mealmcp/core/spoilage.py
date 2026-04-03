@@ -1,15 +1,17 @@
 """Spoilage-aware scoring for recipe optimization.
 
-Provides ingredient overlap and perishability scoring so the optimizer
-can prefer recipe combinations that share perishable ingredients, reducing
-food waste. This is a *tertiary* objective — calorie and macro deviation
-remain dominant. Spoilage scoring only nudges the optimizer when two
-candidate recipes are otherwise close in nutritional fit.
+Provides ingredient overlap, perishability, and package-waste scoring so the
+optimizer can prefer recipe combinations that share perishable ingredients and
+minimize leftover waste from standard package sizes. This is a *tertiary*
+objective — calorie and macro deviation remain dominant. Spoilage scoring only
+nudges the optimizer when two candidate recipes are otherwise close in
+nutritional fit.
 """
 
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 
 from mealmcp.core.models import (
     Ingredient,
@@ -133,6 +135,131 @@ def classify_ingredient(name: str) -> SpoilageProfile:
         tier=PerishabilityTier.STABLE,
         shelf_life_days=365,
     )
+
+
+# ── Package sizes for waste estimation ────────────────────────────────────
+# Maps ingredient keywords to common retail package sizes in a canonical unit.
+# Multiple sizes represent the typical options you'd find at a grocery store
+# (e.g. pint / quart / half-gallon of milk). The optimizer picks the smallest
+# package that satisfies total demand to minimize leftover.
+
+
+@dataclass(frozen=True, slots=True)
+class PackageSpec:
+    """A common retail package size for a perishable ingredient."""
+
+    unit: str
+    sizes: tuple[float, ...]  # ascending order
+
+
+# Sizes in the ingredient's most common recipe unit
+_PACKAGE_SIZES: dict[str, PackageSpec] = {
+    # Dairy — cups
+    "milk": PackageSpec(unit="cup", sizes=(2.0, 4.0, 8.0, 16.0)),  # pint/qt/hgal/gal
+    "cream": PackageSpec(unit="cup", sizes=(1.0, 2.0)),  # half-pint / pint
+    "sour cream": PackageSpec(unit="cup", sizes=(1.0, 2.0)),
+    "yogurt": PackageSpec(unit="cup", sizes=(0.75, 4.0)),  # single / quart tub
+    "butter": PackageSpec(unit="tbsp", sizes=(8.0, 16.0, 32.0)),  # stick / 2-stick / 4-stick
+    "cream cheese": PackageSpec(unit="oz", sizes=(8.0, 16.0)),
+    # Protein — lb
+    "chicken": PackageSpec(unit="lb", sizes=(1.0, 2.0, 3.0, 5.0)),
+    "ground beef": PackageSpec(unit="lb", sizes=(1.0, 2.0, 3.0)),
+    "ground turkey": PackageSpec(unit="lb", sizes=(1.0, 2.0)),
+    "shrimp": PackageSpec(unit="lb", sizes=(1.0, 2.0)),
+    "salmon": PackageSpec(unit="lb", sizes=(0.5, 1.0, 1.5)),
+    "pork": PackageSpec(unit="lb", sizes=(1.0, 2.0, 3.0)),
+    # Produce — whole units or bunches
+    "cilantro": PackageSpec(unit="bunch", sizes=(1.0,)),
+    "parsley": PackageSpec(unit="bunch", sizes=(1.0,)),
+    "basil": PackageSpec(unit="oz", sizes=(0.75, 2.0)),  # clamshell / bunch
+    "spinach": PackageSpec(unit="oz", sizes=(5.0, 10.0, 16.0)),
+    "lettuce": PackageSpec(unit="head", sizes=(1.0,)),
+    "mushroom": PackageSpec(unit="oz", sizes=(8.0, 16.0)),
+    "egg": PackageSpec(unit="whole", sizes=(6.0, 12.0, 18.0)),
+}
+
+
+def _normalize_unit(unit: str | None) -> str:
+    """Rough unit normalization for package comparison."""
+    if unit is None:
+        return ""
+    u = unit.strip().lower().rstrip("s")  # cups -> cup, tbsps -> tbsp
+    aliases: dict[str, str] = {
+        "tablespoon": "tbsp",
+        "teaspoon": "tsp",
+        "ounce": "oz",
+        "pound": "lb",
+        "clove": "clove",
+    }
+    return aliases.get(u, u)
+
+
+def estimate_package_waste(
+    ingredients: list[Ingredient],
+    config: SpoilageConfig | None = None,
+) -> float:
+    """Estimate the fraction of perishable purchases that will go to waste.
+
+    For each perishable ingredient with a known package size, sums the total
+    quantity needed across recipes, picks the smallest package that covers the
+    demand, and computes the waste fraction. The final score is a weighted
+    average across all perishable ingredients, weighted by tier.
+
+    Returns a value in [0.0, 1.0] where 0.0 = no waste, 1.0 = all waste.
+    Ingredients without known package sizes or with mismatched units are
+    skipped (they fall back to the overlap heuristic).
+    """
+    if config is None:
+        config = SpoilageConfig()
+
+    # Aggregate total quantity per normalized ingredient name
+    totals: dict[str, float] = {}
+    units: dict[str, str] = {}
+    for ing in ingredients:
+        key = ing.name.strip().lower()
+        if ing.quantity is not None and ing.quantity > 0:
+            totals[key] = totals.get(key, 0.0) + ing.quantity
+            if key not in units:
+                units[key] = _normalize_unit(ing.unit)
+
+    weighted_waste = 0.0
+    total_weight = 0.0
+
+    for keyword in sorted(_PACKAGE_SIZES, key=len, reverse=True):
+        pkg = _PACKAGE_SIZES[keyword]
+        pkg_unit = _normalize_unit(pkg.unit)
+
+        for ing_key, qty in totals.items():
+            if keyword not in ing_key:
+                continue
+            if units.get(ing_key, "") != pkg_unit:
+                continue
+
+            profile = classify_ingredient(ing_key)
+            multiplier = _tier_multiplier(profile.tier, config)
+            if multiplier == 0.0:
+                continue
+
+            # Find smallest package that covers the need
+            chosen_size = pkg.sizes[-1]  # default to largest
+            for size in pkg.sizes:
+                if size >= qty:
+                    chosen_size = size
+                    break
+
+            waste_fraction = (chosen_size - qty) / chosen_size if chosen_size > 0 else 0.0
+            waste_fraction = max(0.0, min(1.0, waste_fraction))
+
+            weighted_waste += waste_fraction * multiplier
+            total_weight += multiplier
+
+            # Remove so we don't double-count
+            del totals[ing_key]
+            break
+
+    if total_weight == 0.0:
+        return 0.0
+    return weighted_waste / total_weight
 
 
 def _tier_multiplier(tier: PerishabilityTier, config: SpoilageConfig) -> float:
