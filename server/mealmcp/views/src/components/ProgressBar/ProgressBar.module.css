@@ -1,0 +1,47 @@
+.wrapper {
+  /* container — accepts className for external spacing */
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  font: var(--text-small);
+  margin-bottom: var(--space-1);
+}
+
+.headerLabel {
+  color: var(--color-text-muted);
+}
+
+.track {
+  height: 8px;
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.fill {
+  width: var(--progress-pct);
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease;
+}
+
+/* ── Macro color variants ────────────────────────────────────────────── */
+
+.protein .fill { background: var(--color-protein); }
+.protein .headerValue { color: var(--color-protein); }
+
+.carbs .fill { background: var(--color-carbs); }
+.carbs .headerValue { color: var(--color-carbs); }
+
+.fat .fill { background: var(--color-fat); }
+.fat .headerValue { color: var(--color-fat); }
+
+.calories .fill { background: var(--color-calories); }
+.calories .headerValue { color: var(--color-calories); }
+
+/* ── Over-target state ───────────────────────────────────────────────── */
+
+.over .fill { background: var(--color-danger); }
+.over .headerValue { color: var(--color-danger); }
