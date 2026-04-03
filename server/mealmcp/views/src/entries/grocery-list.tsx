@@ -1,54 +1,40 @@
 import { StrictMode, useState, useMemo, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { Checkbox } from "react-aria-components";
 import { connectApp, callTool, getViewData } from "../bridge";
 import { Button, Card } from "../components";
-import { colors, radius, spacing, font } from "../theme";
 import type { GroceryItem, GroceryListData } from "../types";
 import "../global.css";
+import styles from "./grocery-list.module.css";
 
-/* ── Category Header ────────────────────────────────────────────────── */
+/* ── Category Header ──────────────────────────────────────────────────── */
 
 function CategoryHeader({
   name,
   count,
   checkedCount,
+  onCheckAll,
 }: {
   name: string;
   count: number;
   checkedCount: number;
+  onCheckAll: () => void;
 }) {
   const allChecked = checkedCount === count;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: `${spacing.sm} 0`,
-        marginTop: spacing.md,
-        borderBottom: `1px solid ${colors.border}`,
-      }}
-    >
-      <h2
-        style={{
-          fontSize: "0.85rem",
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: allChecked ? colors.textDim : colors.text,
-        }}
-      >
+    <div className={styles.categoryHeader} onClick={onCheckAll}>
+      <h2 className={`${styles.categoryName} ${allChecked ? styles.categoryNameDone : ""}`}>
         {name}
       </h2>
-      <span style={{ fontSize: "0.75rem", color: colors.textMuted, fontFamily: font.mono }}>
+      <span className={styles.categoryCount}>
         {checkedCount}/{count}
       </span>
     </div>
   );
 }
 
-/* ── Checklist Item ─────────────────────────────────────────────────── */
+/* ── Checklist Item ───────────────────────────────────────────────────── */
 
 function ChecklistItem({
   item,
@@ -64,79 +50,26 @@ function ChecklistItem({
     : "";
 
   return (
-    <div
-      onClick={onToggle}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: spacing.md,
-        padding: `${spacing.sm} ${spacing.md}`,
-        borderRadius: radius.sm,
-        cursor: "pointer",
-        transition: "background 0.1s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = colors.surfaceHover;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {/* Checkbox */}
-      <div
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: radius.sm,
-          border: `2px solid ${isChecked ? colors.success : colors.border}`,
-          background: isChecked ? colors.successBg : "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          transition: "all 0.15s ease",
-        }}
-      >
-        {isChecked && <span style={{ color: colors.success, fontSize: "12px" }}>{"\u2713"}</span>}
+    <div className={styles.checklistItem} onClick={onToggle}>
+      <div className={styles.checkboxWrapper}>
+        <Checkbox
+          isSelected={isChecked}
+          onChange={onToggle}
+          aria-label={`${item.name}${displayQty ? ` (${displayQty})` : ""}`}
+        />
       </div>
 
-      {/* Item details */}
-      <div style={{ flex: 1 }}>
-        <span
-          style={{
-            fontSize: "0.9rem",
-            color: isChecked ? colors.textDim : colors.text,
-            textDecoration: isChecked ? "line-through" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
+      <div className={styles.itemDetails}>
+        <span className={`${styles.itemName} ${isChecked ? styles.itemNameChecked : ""}`}>
           {item.name}
         </span>
         {displayQty && (
-          <span
-            style={{
-              marginLeft: spacing.sm,
-              fontSize: "0.8rem",
-              color: colors.textMuted,
-              fontFamily: font.mono,
-            }}
-          >
-            {displayQty}
-          </span>
+          <span className={styles.itemQty}>{displayQty}</span>
         )}
       </div>
 
-      {/* Recipe sources */}
       {item.recipe_sources.length > 0 && (
-        <div
-          style={{
-            fontSize: "0.7rem",
-            color: colors.textDim,
-            maxWidth: "120px",
-            textAlign: "right",
-            lineHeight: 1.3,
-          }}
-        >
+        <div className={styles.recipeSources}>
           {item.recipe_sources.join(", ")}
         </div>
       )}
@@ -144,61 +77,33 @@ function ChecklistItem({
   );
 }
 
-/* ── Summary Bar ────────────────────────────────────────────────────── */
+/* ── Summary Bar ──────────────────────────────────────────────────────── */
 
 function SummaryBar({ total, checked }: { total: number; checked: number }) {
   const remaining = total - checked;
   const pct = total > 0 ? (checked / total) * 100 : 0;
 
   return (
-    <Card
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: spacing.lg,
-        marginBottom: spacing.lg,
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div
-          style={{
-            height: "6px",
-            background: colors.border,
-            borderRadius: radius.full,
-            overflow: "hidden",
-          }}
-        >
+    <Card className={styles.summaryCard}>
+      <div className={styles.summaryTrackWrapper}>
+        <div className={styles.summaryTrack}>
           <div
-            style={{
-              width: `${pct}%`,
-              height: "100%",
-              background: pct === 100 ? colors.success : colors.primary,
-              borderRadius: radius.full,
-              transition: "width 0.3s ease",
-            }}
+            className={`${styles.summaryFill} ${pct === 100 ? styles.summaryFillComplete : styles.summaryFillActive}`}
+            {...{ style: { "--progress-pct": `${pct}%` } as React.CSSProperties }}
           />
         </div>
-        <div style={{ fontSize: "0.75rem", color: colors.textMuted, marginTop: spacing.xs }}>
+        <div className={styles.summarySubtext}>
           {checked} of {total} items checked off
         </div>
       </div>
-      <div
-        style={{
-          fontSize: "1.5rem",
-          fontWeight: 700,
-          color: remaining === 0 ? colors.success : colors.text,
-          fontFamily: font.mono,
-          minWidth: "60px",
-          textAlign: "center",
-        }}
-      >
+      <div className={`${styles.summaryCount} ${remaining === 0 ? styles.summaryCountDone : ""}`}>
         {remaining === 0 ? "\u2713" : remaining}
       </div>
     </Card>
   );
 }
 
-/* ── Main App ───────────────────────────────────────────────────────── */
+/* ── Main App ─────────────────────────────────────────────────────────── */
 
 interface IndexedItem extends GroceryItem {
   _idx: number;
@@ -264,7 +169,7 @@ function GroceryListApp() {
   }, [items, checkedIds]);
 
   return (
-    <div className="view-container" style={{ maxWidth: "700px" }}>
+    <div className={`view-container ${styles.narrowContainer}`}>
       <div className="view-header">
         <h1>Grocery List</h1>
         <p>Check off items you already have. Unchecked items will be your shopping list.</p>
@@ -276,14 +181,14 @@ function GroceryListApp() {
         const checkedCount = catItems.filter((it) => checkedIds.has(it._idx)).length;
         return (
           <div key={category}>
-            <div
-              style={{ cursor: "pointer" }}
-              onClick={() => {
+            <CategoryHeader
+              name={category}
+              count={catItems.length}
+              checkedCount={checkedCount}
+              onCheckAll={() => {
                 if (checkedCount < catItems.length) checkAll(category);
               }}
-            >
-              <CategoryHeader name={category} count={catItems.length} checkedCount={checkedCount} />
-            </div>
+            />
             {catItems.map((item) => (
               <ChecklistItem
                 key={item._idx}
@@ -297,27 +202,16 @@ function GroceryListApp() {
       })}
 
       {items.length === 0 && (
-        <div style={{ textAlign: "center", padding: spacing.xl, color: colors.textMuted }}>
+        <div className={styles.empty}>
           No items in the grocery list.
         </div>
       )}
 
-      <div
-        style={{
-          marginTop: spacing.xl,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          position: "sticky",
-          bottom: spacing.lg,
-          background: colors.bg,
-          padding: `${spacing.md} 0`,
-        }}
-      >
-        <Button variant="ghost" onClick={() => setCheckedIds(new Set())}>
+      <div className={styles.footer}>
+        <Button variant="ghost" onPress={() => setCheckedIds(new Set())}>
           Uncheck All
         </Button>
-        <Button onClick={handleFinalize} disabled={items.length === 0}>
+        <Button onPress={handleFinalize} isDisabled={items.length === 0}>
           {checkedIds.size === items.length
             ? "All Items In Pantry"
             : `Confirm List (${items.length - checkedIds.size} items)`}
