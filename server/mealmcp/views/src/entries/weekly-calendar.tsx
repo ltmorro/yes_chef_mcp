@@ -62,17 +62,17 @@ function MacroVarianceBar({
 /* ── Meal Chip ────────────────────────────────────────────────────────── */
 
 const CHIP_CLASS: Record<string, string> = {
-  breakfast: styles.mealChipBreakfast,
-  lunch: styles.mealChipLunch,
-  dinner: styles.mealChipDinner,
-  snack: styles.mealChipSnack,
+  breakfast: styles.mealChipBreakfast ?? "",
+  lunch: styles.mealChipLunch ?? "",
+  dinner: styles.mealChipDinner ?? "",
+  snack: styles.mealChipSnack ?? "",
 };
 
 const TYPE_CLASS: Record<string, string> = {
-  breakfast: styles.mealTypeBreakfast,
-  lunch: styles.mealTypeLunch,
-  dinner: styles.mealTypeDinner,
-  snack: styles.mealTypeSnack,
+  breakfast: styles.mealTypeBreakfast ?? "",
+  lunch: styles.mealTypeLunch ?? "",
+  dinner: styles.mealTypeDinner ?? "",
+  snack: styles.mealTypeSnack ?? "",
 };
 
 function MealChip({ mealType, recipes }: { mealType: string; recipes: MealComponent[] }) {

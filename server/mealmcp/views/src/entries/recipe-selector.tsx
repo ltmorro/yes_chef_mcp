@@ -9,11 +9,11 @@ import styles from "./recipe-selector.module.css";
 /* ── Category Pill ────────────────────────────────────────────────────── */
 
 const CATEGORY_CLASS: Record<string, string> = {
-  main: styles.categoryMain,
-  side: styles.categorySide,
-  snack: styles.categorySnack,
-  dessert: styles.categoryDessert,
-  breakfast: styles.categoryBreakfast,
+  main: styles.categoryMain ?? "",
+  side: styles.categorySide ?? "",
+  snack: styles.categorySnack ?? "",
+  dessert: styles.categoryDessert ?? "",
+  breakfast: styles.categoryBreakfast ?? "",
 };
 
 function CategoryPill({ category }: { category: string | null }) {
