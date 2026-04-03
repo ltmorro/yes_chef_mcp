@@ -1,6 +1,6 @@
-import { StrictMode, useState, useMemo } from "react";
+import { StrictMode, useState, useMemo, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { getViewData, sendResult } from "../bridge";
+import { connectApp, callTool, getViewData } from "../bridge";
 import { Button, Card, ProgressBar } from "../components";
 import { colors, radius, spacing } from "../theme";
 import type { DaySummary, MacroSummary, MealComponent, WeeklyCalendarData } from "../types";
@@ -271,6 +271,8 @@ function WeeklyCalendarApp() {
 
   const [actionStatus, setActionStatus] = useState<string | null>(null);
 
+  useEffect(() => { connectApp("Weekly Calendar"); }, []);
+
   const days = useMemo(() => {
     const dayMap: Record<number, DaySummary> = {};
     for (const ds of planSummary.daily_summaries) {
@@ -309,7 +311,7 @@ function WeeklyCalendarApp() {
         {hasEmptySlots && (
           <Button
             onClick={() => {
-              sendResult({ action: "optimize_empty_slots", plan_id: planSummary.plan_id });
+              callTool("optimize_empty_slots", { plan_id: planSummary.plan_id });
               setActionStatus("optimizing");
             }}
           >
@@ -319,7 +321,7 @@ function WeeklyCalendarApp() {
         <Button
           variant="secondary"
           onClick={() => {
-            sendResult({ action: "rebalance_plan", plan_id: planSummary.plan_id });
+            callTool("rebalance_plan", { plan_id: planSummary.plan_id });
             setActionStatus("rebalancing");
           }}
         >
@@ -328,7 +330,7 @@ function WeeklyCalendarApp() {
         <Button
           variant="ghost"
           onClick={() => {
-            sendResult({ action: "refresh_plan", plan_id: planSummary.plan_id });
+            callTool("refresh_plan", { plan_id: planSummary.plan_id });
             setActionStatus("refreshing");
           }}
         >

@@ -1,6 +1,6 @@
-import { StrictMode, useState, useMemo, useCallback } from "react";
+import { StrictMode, useState, useMemo, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { getViewData, sendResult } from "../bridge";
+import { connectApp, callTool, getViewData } from "../bridge";
 import { Button, Card } from "../components";
 import { colors, radius, spacing, font } from "../theme";
 import type { GroceryItem, GroceryListData } from "../types";
@@ -215,6 +215,8 @@ function GroceryListApp() {
 
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
 
+  useEffect(() => { connectApp("Grocery List"); }, []);
+
   const toggle = useCallback((idx: number) => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
@@ -254,8 +256,7 @@ function GroceryListApp() {
 
   const handleFinalize = useCallback(() => {
     const uncheckedItems = items.filter((_, idx) => !checkedIds.has(idx));
-    sendResult({
-      action: "confirm_grocery_list",
+    callTool("confirm_grocery_list", {
       items: uncheckedItems,
       checked_off_count: checkedIds.size,
       total_count: items.length,

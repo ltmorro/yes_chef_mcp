@@ -1,6 +1,6 @@
-import { StrictMode, useState, useMemo } from "react";
+import { StrictMode, useState, useMemo, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { getViewData, sendResult } from "../bridge";
+import { connectApp, callTool, getViewData } from "../bridge";
 import { Button, Card, MacroBadgeRow } from "../components";
 import { colors, radius, spacing } from "../theme";
 import type { RecipeHit, RecipeSelectorData } from "../types";
@@ -198,6 +198,8 @@ function RecipeSelectorApp() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
+  useEffect(() => { connectApp("Recipe Selector"); }, []);
+
   const categories = useMemo(() => {
     const cats = new Set(recipes.map((r) => r.category).filter(Boolean) as string[]);
     return [...cats].sort();
@@ -211,8 +213,7 @@ function RecipeSelectorApp() {
   const handleConfirm = () => {
     if (!selectedId) return;
     const recipe = recipes.find((r) => r.id === selectedId);
-    sendResult({
-      action: "select_recipe",
+    callTool("select_recipe", {
       recipe_id: selectedId,
       recipe_name: recipe?.name ?? "",
     });

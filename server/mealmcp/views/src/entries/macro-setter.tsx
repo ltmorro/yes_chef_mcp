@@ -1,6 +1,6 @@
 import { StrictMode, useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
-import { getViewData, sendResult } from "../bridge";
+import { connectApp, callTool, getViewData, extractText } from "../bridge";
 import { Button, Card } from "../components";
 import { colors, spacing, font } from "../theme";
 import type { MacroSetterData } from "../types";
@@ -170,9 +170,29 @@ function MacroSetterApp() {
 
   const totalCalories = Math.round(protein * 4 + carbs * 4 + fat * 9);
 
+  // Connect to MCP host on mount (no-op in standalone mode)
+  useEffect(() => {
+    const app = connectApp("Macro Setter");
+    app.then((a) => {
+      if (!a) return;
+      // Receive refreshed targets pushed by the host
+      a.ontoolresult = ({ content }) => {
+        const text = extractText({ content });
+        if (!text) return;
+        try {
+          const parsed = JSON.parse(text) as MacroSetterData;
+          if (parsed.current_targets) {
+            setProtein(parsed.current_targets.protein_g);
+            setCarbs(parsed.current_targets.carbs_g);
+            setFat(parsed.current_targets.fat_g);
+          }
+        } catch { /* non-JSON result, ignore */ }
+      };
+    });
+  }, []);
+
   const handleSave = useCallback(() => {
-    sendResult({
-      action: "save_macro_targets",
+    callTool("save_macro_targets", {
       protein_g: protein,
       carbs_g: carbs,
       fat_g: fat,

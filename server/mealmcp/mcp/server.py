@@ -10,6 +10,7 @@ import uuid
 from datetime import date
 
 from fastmcp import FastMCP
+from fastmcp.apps import AppConfig, ResourceCSP
 
 from mealmcp.core.db import get_db
 from mealmcp.core.grocery import generate_grocery_list as _generate_grocery
@@ -62,7 +63,7 @@ from mealmcp.core.schemas import (
 )
 from mealmcp.core.search import hybrid_search, macro_distance_search
 
-mcp = FastMCP("MealMCP", description="Meal planning with macro optimization")
+mcp = FastMCP("MealMCP", instructions="Meal planning with macro optimization")
 
 
 # ── Search Tools ──────────────────────────────────────────────────────────
@@ -591,30 +592,53 @@ async def rebalance_plan(
     return RebalancedPlanSchema.model_validate(result)
 
 
-# ── View Tools (HTML Components) ────────────────────────────────────────
+# ── View Tools (MCP Apps Extension) ─────────────────────────────────────
 
-# These tools return pre-rendered HTML strings that MCP clients can display
-# as rich interactive views. Each delegates to the same rendering logic
-# used by the FastAPI /api/views/* endpoints.
+# Each view tool returns JSON data that the linked ui:// resource renders.
+# Hosts that support the MCP Apps extension display the HTML in a sandboxed
+# iframe; the ext-apps SDK wires tool results into the React app.
+
+_VIEW_CSP = ResourceCSP(
+    resource_domains=["https://unpkg.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+)
 
 
-@mcp.tool()
+@mcp.tool(
+    app=AppConfig(resource_uri="ui://mealmcp/macro-setter.html"),
+)
 async def show_macro_target_setter(
     member_id: str | None = None,
 ) -> str:
     """Show an interactive macro target editor with sliders and pie chart.
 
     The user can adjust protein, carbs, and fat targets and see real-time
-    calorie impact. Returns HTML that should be displayed to the user.
-    When the user clicks Save, the result contains the new macro values.
+    calorie impact. When the user clicks Save, the app calls
+    save_macro_targets with the new values.
     """
-    from mealmcp.api.views import macro_setter_view
+    import json
 
-    response = await macro_setter_view(member_id)
-    return response.body.decode()
+    targets = await get_macro_targets(member_id)
+    active = next((t for t in targets if t.is_active), None)
+
+    data: dict[str, object] = {}
+    if active:
+        data["current_targets"] = {
+            "protein_g": active.protein_g,
+            "carbs_g": active.carbs_g,
+            "fat_g": active.fat_g,
+            "calories": active.calories,
+            "name": active.name,
+        }
+
+    return json.dumps(data)
 
 
-@mcp.tool()
+@mcp.tool(
+    app=AppConfig(
+        resource_uri="ui://mealmcp/recipe-selector.html",
+        visibility=["model"],
+    ),
+)
 async def show_recipe_selector(
     query: str = "",
     category: str | None = None,
@@ -624,17 +648,53 @@ async def show_recipe_selector(
     """Show a visual recipe browser with cards, category filters, and macro badges.
 
     Displays search results in a responsive grid. The user selects a recipe
-    and the result contains the chosen recipe_id for follow-up with
-    get_recipe_detail().
+    and the app calls select_recipe with the chosen recipe_id.
     """
-    from mealmcp.api.views import recipe_selector_view
+    import json
 
-    tags_str = ",".join(tags) if tags else None
-    response = await recipe_selector_view(query, category, tags_str, max_results)
-    return response.body.decode()
+    cat = RecipeCategory(category) if category else None
+    embedding: list[float] | None = None
+    try:
+        from mealmcp.pipeline.embeddings import generate_embedding
+        from mealmcp.core.models import Recipe
+
+        dummy = Recipe(id="", family_id="", name=query, source="manual")  # type: ignore[arg-type]
+        embedding = generate_embedding(dummy)
+    except ImportError:
+        pass
+
+    result = await hybrid_search(
+        query=query,
+        embedding=embedding,
+        category=cat,
+        tags=tags,
+        max_results=max_results,
+    )
+
+    recipes = [
+        {
+            "id": hit.id,
+            "name": hit.name,
+            "category": hit.category,
+            "tags": hit.tags,
+            "prep_minutes": hit.prep_minutes,
+            "cook_minutes": hit.cook_minutes,
+            "macro_summary": {
+                "calories": hit.macro_summary.calories,
+                "protein_g": hit.macro_summary.protein_g,
+                "carbs_g": hit.macro_summary.carbs_g,
+                "fat_g": hit.macro_summary.fat_g,
+            },
+        }
+        for hit in result.hits
+    ]
+
+    return json.dumps({"recipes": recipes})
 
 
-@mcp.tool()
+@mcp.tool(
+    app=AppConfig(resource_uri="ui://mealmcp/weekly-calendar.html"),
+)
 async def show_weekly_calendar(
     plan_id: str,
     member_id: str | None = None,
@@ -645,13 +705,32 @@ async def show_weekly_calendar(
     proximity to daily macro targets. Includes action buttons for
     optimize, rebalance, and refresh.
     """
-    from mealmcp.api.views import weekly_calendar_view
+    import json
 
-    response = await weekly_calendar_view(plan_id, member_id)
-    return response.body.decode()
+    summary = await get_meal_plan_summary(plan_id, member_id, detail_level="full")
+
+    targets: dict[str, object] | None = None
+    if member_id:
+        target_list = await get_macro_targets(member_id)
+        active = next((t for t in target_list if t.is_active), None)
+        if active:
+            targets = {
+                "calories": active.calories,
+                "protein_g": active.protein_g,
+                "carbs_g": active.carbs_g,
+                "fat_g": active.fat_g,
+            }
+
+    data: dict[str, object] = {"plan_summary": summary.model_dump()}
+    if targets:
+        data["targets"] = targets
+
+    return json.dumps(data, default=str)
 
 
-@mcp.tool()
+@mcp.tool(
+    app=AppConfig(resource_uri="ui://mealmcp/grocery-list.html"),
+)
 async def show_grocery_checklist(
     plan_id: str,
     merge_similar: bool = True,
@@ -660,10 +739,62 @@ async def show_grocery_checklist(
     """Show an interactive grocery checklist grouped by ingredient category.
 
     Users can check off items they already have in their pantry. When they
-    click Confirm, the result contains only the unchecked items they need
-    to buy.
+    click Confirm, the app calls confirm_grocery_list with only the
+    unchecked items they need to buy.
     """
-    from mealmcp.api.views import grocery_list_view
+    import json
 
-    response = await grocery_list_view(plan_id, merge_similar, exclude_pantry)
-    return response.body.decode()
+    result = await _generate_grocery(plan_id, merge_similar, exclude_pantry)
+    schema = GroceryListSchema.model_validate(result)
+
+    return json.dumps({"grocery_list": schema.model_dump()}, default=str)
+
+
+# ── UI Resources (MCP Apps) ─────────────────────────────────────────────
+
+# Each resource serves the built HTML from the Vite dist/ directory.
+# The HTML loads bundled JS/CSS that renders the React app.
+
+
+@mcp.resource(
+    "ui://mealmcp/macro-setter.html",
+    app=AppConfig(csp=_VIEW_CSP),
+)
+def macro_setter_resource() -> str:
+    """Interactive macro target editor UI."""
+    from mealmcp.views import DIST_DIR
+
+    return (DIST_DIR / "macro-setter.html").read_text()
+
+
+@mcp.resource(
+    "ui://mealmcp/recipe-selector.html",
+    app=AppConfig(csp=_VIEW_CSP),
+)
+def recipe_selector_resource() -> str:
+    """Recipe browser with card grid UI."""
+    from mealmcp.views import DIST_DIR
+
+    return (DIST_DIR / "recipe-selector.html").read_text()
+
+
+@mcp.resource(
+    "ui://mealmcp/weekly-calendar.html",
+    app=AppConfig(csp=_VIEW_CSP),
+)
+def weekly_calendar_resource() -> str:
+    """Weekly meal plan calendar UI."""
+    from mealmcp.views import DIST_DIR
+
+    return (DIST_DIR / "weekly-calendar.html").read_text()
+
+
+@mcp.resource(
+    "ui://mealmcp/grocery-list.html",
+    app=AppConfig(csp=_VIEW_CSP),
+)
+def grocery_list_resource() -> str:
+    """Grocery checklist UI."""
+    from mealmcp.views import DIST_DIR
+
+    return (DIST_DIR / "grocery-list.html").read_text()
