@@ -19,7 +19,7 @@ from mealmcp.mcp.server import (
     get_meal_plan_summary,
     search_recipes_by_query,
 )
-from mealmcp.views import VIEWS_DIR
+from mealmcp.views import DIST_DIR
 
 router = APIRouter(tags=["views"])
 
@@ -51,7 +51,7 @@ async def macro_setter_view(member_id: str | None = None) -> HTMLResponse:
             "name": active.name,
         }
 
-    html = _inject_data(VIEWS_DIR / "macro-setter.html", data)
+    html = _inject_data(DIST_DIR / "macro-setter.html", data)
     return HTMLResponse(content=html)
 
 
@@ -90,7 +90,7 @@ async def recipe_selector_view(
         for hit in result.hits
     ]
 
-    html = _inject_data(VIEWS_DIR / "recipe-selector.html", {"recipes": recipes})
+    html = _inject_data(DIST_DIR / "recipe-selector.html", {"recipes": recipes})
     return HTMLResponse(content=html)
 
 
@@ -118,7 +118,7 @@ async def weekly_calendar_view(
     if targets:
         data["targets"] = targets
 
-    html = _inject_data(VIEWS_DIR / "weekly-calendar.html", data)
+    html = _inject_data(DIST_DIR / "weekly-calendar.html", data)
     return HTMLResponse(content=html)
 
 
@@ -132,5 +132,5 @@ async def grocery_list_view(
     grocery = await generate_grocery_list(plan_id, merge_similar, exclude_pantry)
 
     data: dict[str, object] = {"grocery_list": grocery.model_dump()}
-    html = _inject_data(VIEWS_DIR / "grocery-list.html", data)
+    html = _inject_data(DIST_DIR / "grocery-list.html", data)
     return HTMLResponse(content=html)
