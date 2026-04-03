@@ -11,10 +11,13 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from mealmcp.api.routes import router
+from mealmcp.api.views import router as views_router
 from mealmcp.core.db import get_db
 from mealmcp.mcp.server import mcp
+from mealmcp.views import DIST_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,12 @@ app = FastAPI(
 
 # REST API routes
 app.include_router(router, prefix="/api")
+
+# HTML view components (served at /api/views/*)
+app.include_router(views_router, prefix="/api")
+
+# Vite build output — JS/CSS bundles referenced by the HTML views
+app.mount("/views/static", StaticFiles(directory=str(DIST_DIR)), name="view-static")
 
 # Mount FastMCP's SSE transport at /mcp
 app.mount("/mcp", mcp.sse_app())
