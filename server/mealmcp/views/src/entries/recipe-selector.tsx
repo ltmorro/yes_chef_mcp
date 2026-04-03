@@ -2,43 +2,32 @@ import { StrictMode, useState, useMemo, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { connectApp, callTool, getViewData } from "../bridge";
 import { Button, Card, MacroBadgeRow } from "../components";
-import { colors, radius, spacing } from "../theme";
 import type { RecipeHit, RecipeSelectorData } from "../types";
 import "../global.css";
+import styles from "./recipe-selector.module.css";
 
-/* ── Category Pill ──────────────────────────────────────────────────── */
+/* ── Category Pill ────────────────────────────────────────────────────── */
 
-const CATEGORY_COLORS: Record<string, string> = {
-  main: colors.primary,
-  side: colors.success,
-  snack: colors.warning,
-  dessert: colors.fat,
-  breakfast: colors.carbs,
+const CATEGORY_CLASS: Record<string, string> = {
+  main: styles.categoryMain,
+  side: styles.categorySide,
+  snack: styles.categorySnack,
+  dessert: styles.categoryDessert,
+  breakfast: styles.categoryBreakfast,
 };
 
 function CategoryPill({ category }: { category: string | null }) {
   if (!category) return null;
-  const color = CATEGORY_COLORS[category] ?? colors.textMuted;
+  const colorClass = CATEGORY_CLASS[category] ?? styles.categoryDefault;
 
   return (
-    <span
-      style={{
-        fontSize: "0.7rem",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.05em",
-        color,
-        background: `${color}18`,
-        padding: `2px ${spacing.sm}`,
-        borderRadius: radius.full,
-      }}
-    >
+    <span className={`${styles.categoryPill} ${colorClass}`}>
       {category}
     </span>
   );
 }
 
-/* ── Time Badge ─────────────────────────────────────────────────────── */
+/* ── Time Badge ───────────────────────────────────────────────────────── */
 
 function TimeBadge({
   prepMinutes,
@@ -51,13 +40,13 @@ function TimeBadge({
   if (total === 0) return null;
 
   return (
-    <span style={{ fontSize: "0.75rem", color: colors.textMuted }}>
+    <span className={styles.timeBadge}>
       {"\u23F1"} {total} min
     </span>
   );
 }
 
-/* ── Recipe Card ────────────────────────────────────────────────────── */
+/* ── Recipe Card ──────────────────────────────────────────────────────── */
 
 function RecipeCard({
   recipe,
@@ -71,91 +60,37 @@ function RecipeCard({
   return (
     <Card
       onClick={() => onSelect(recipe.id)}
-      style={{
-        cursor: "pointer",
-        borderColor: isSelected ? colors.primary : colors.border,
-        background: isSelected ? colors.primaryBg : colors.surface,
-        transition: "all 0.15s ease",
-      }}
+      selected={isSelected}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: spacing.sm,
-        }}
-      >
+      <div className={styles.recipeCardHeader}>
         <div>
-          <h3
-            style={{
-              fontSize: "0.95rem",
-              fontWeight: 600,
-              color: colors.text,
-              marginBottom: "4px",
-            }}
-          >
-            {recipe.name}
-          </h3>
-          <div style={{ display: "flex", gap: spacing.sm, alignItems: "center" }}>
+          <h3 className={styles.recipeName}>{recipe.name}</h3>
+          <div className={styles.recipeMeta}>
             <CategoryPill category={recipe.category} />
             <TimeBadge prepMinutes={recipe.prep_minutes} cookMinutes={recipe.cook_minutes} />
           </div>
         </div>
         {isSelected && (
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              background: colors.primary,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "14px",
-              color: "#fff",
-              flexShrink: 0,
-            }}
-          >
-            {"\u2713"}
-          </div>
+          <div className={styles.checkmark}>{"\u2713"}</div>
         )}
       </div>
 
       {recipe.tags.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            gap: "4px",
-            flexWrap: "wrap",
-            marginBottom: spacing.sm,
-          }}
-        >
+        <div className={styles.tags}>
           {recipe.tags.slice(0, 4).map((tag) => (
-            <span
-              key={tag}
-              style={{
-                fontSize: "0.7rem",
-                color: colors.textDim,
-                background: colors.surfaceHover,
-                padding: `2px ${spacing.xs}`,
-                borderRadius: radius.sm,
-              }}
-            >
-              {tag}
-            </span>
+            <span key={tag} className={styles.tag}>{tag}</span>
           ))}
         </div>
       )}
 
       {recipe.macro_summary && (
-        <MacroBadgeRow macros={recipe.macro_summary} style={{ marginTop: spacing.sm }} />
+        <MacroBadgeRow macros={recipe.macro_summary} className={styles.macros} />
       )}
     </Card>
   );
 }
 
-/* ── Filter Bar ─────────────────────────────────────────────────────── */
+/* ── Filter Bar ───────────────────────────────────────────────────────── */
 
 function FilterBar({
   categories,
@@ -167,11 +102,11 @@ function FilterBar({
   onChange: (cat: string | null) => void;
 }) {
   return (
-    <div style={{ display: "flex", gap: spacing.sm, marginBottom: spacing.lg, flexWrap: "wrap" }}>
+    <div className={styles.filterBar}>
       <Button
         variant={!selected ? "primary" : "secondary"}
-        onClick={() => onChange(null)}
-        style={{ padding: `6px ${spacing.md}`, fontSize: "0.8rem" }}
+        size="sm"
+        onPress={() => onChange(null)}
       >
         All
       </Button>
@@ -179,8 +114,8 @@ function FilterBar({
         <Button
           key={cat}
           variant={selected === cat ? "primary" : "secondary"}
-          onClick={() => onChange(cat)}
-          style={{ padding: `6px ${spacing.md}`, fontSize: "0.8rem" }}
+          size="sm"
+          onPress={() => onChange(cat)}
         >
           {cat.charAt(0).toUpperCase() + cat.slice(1)}
         </Button>
@@ -189,7 +124,7 @@ function FilterBar({
   );
 }
 
-/* ── Main App ───────────────────────────────────────────────────────── */
+/* ── Main App ─────────────────────────────────────────────────────────── */
 
 function RecipeSelectorApp() {
   const data = getViewData<RecipeSelectorData>();
@@ -232,13 +167,7 @@ function RecipeSelectorApp() {
         <FilterBar categories={categories} selected={categoryFilter} onChange={setCategoryFilter} />
       )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: spacing.md,
-        }}
-      >
+      <div className={styles.recipeGrid}>
         {filtered.map((recipe) => (
           <RecipeCard
             key={recipe.id}
@@ -250,27 +179,16 @@ function RecipeSelectorApp() {
       </div>
 
       {filtered.length === 0 && (
-        <div style={{ textAlign: "center", padding: spacing.xl, color: colors.textMuted }}>
+        <div className={styles.empty}>
           No recipes match the current filter.
         </div>
       )}
 
-      <div
-        style={{
-          marginTop: spacing.xl,
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: spacing.md,
-          position: "sticky",
-          bottom: spacing.lg,
-          background: colors.bg,
-          padding: `${spacing.md} 0`,
-        }}
-      >
-        <Button variant="secondary" onClick={() => setSelectedId(null)}>
+      <div className={styles.footer}>
+        <Button variant="secondary" onPress={() => setSelectedId(null)}>
           Clear
         </Button>
-        <Button onClick={handleConfirm} disabled={!selectedId}>
+        <Button onPress={handleConfirm} isDisabled={!selectedId}>
           View Recipe Details
         </Button>
       </div>
