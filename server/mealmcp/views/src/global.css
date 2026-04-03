@@ -1,36 +1,116 @@
-*, *::before, *::after {
+/* ── Token Foundation ─────────────────────────────────────────────────── */
+
+:root {
+  /* ── Fonts ─────────────────────────────────────────────────────────── */
+  --font-brand: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* ── Spacing (8-point grid) ────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+
+  /* ── Colors — Surface ──────────────────────────────────────────────── */
+  --color-bg: #0f1117;
+  --color-surface: #1a1d27;
+  --color-surface-hover: #242836;
+  --color-border: #2e3347;
+  --color-border-focus: #c2703e;
+
+  /* ── Colors — Text ─────────────────────────────────────────────────── */
+  --color-text: #e2e8f0;
+  --color-text-inverse: #0f1117;
+  --color-text-muted: #94a3b8;
+  --color-text-dim: #64748b;
+
+  /* ── Colors — Brand ────────────────────────────────────────────────── */
+  --color-primary: #c2703e;
+  --color-primary-hover: #d4813b;
+  --color-primary-bg: rgba(194, 112, 62, 0.12);
+
+  /* ── Colors — Semantic ─────────────────────────────────────────────── */
+  --color-success: #22c55e;
+  --color-success-bg: rgba(34, 197, 94, 0.12);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+
+  /* ── Colors — Macro Data Viz ───────────────────────────────────────── */
+  --color-protein: #3b82f6;
+  --color-carbs: #f59e0b;
+  --color-fat: #ef4444;
+  --color-calories: #a78bfa;
+
+  /* ── Radius ────────────────────────────────────────────────────────── */
+  --radius-none: 0px;
+  --radius-pill: 9999px;
+
+  /* ── Elevation ─────────────────────────────────────────────────────── */
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --elevation-2: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --elevation-3: 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  /* ── Typography ────────────────────────────────────────────────────── */
+  --text-display: 700 28px/32px var(--font-brand);
+  --text-heading: 600 20px/24px var(--font-brand);
+  --text-body: 400 16px/24px var(--font-brand);
+  --text-body-medium: 500 16px/24px var(--font-brand);
+  --text-small: 400 12px/20px var(--font-brand);
+  --text-small-semibold: 600 12px/20px var(--font-brand);
+  --text-badge: 600 11px/16px var(--font-brand);
+  --text-label: 600 14px/20px var(--font-brand);
+  --text-mono: 400 14px/20px var(--font-mono);
+  --text-mono-large: 700 28px/32px var(--font-mono);
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #0f1117;
-  color: #e2e8f0;
-  line-height: 1.6;
+  font: var(--text-body);
+  background: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
+
+/* ── Root Layout ──────────────────────────────────────────────────────── */
 
 .view-container {
   max-width: 960px;
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--space-4);
 }
 
 .view-header {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-4);
 }
 
 .view-header h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font: var(--text-display);
   letter-spacing: -0.02em;
-  color: #e2e8f0;
+  color: var(--color-text);
 }
 
 .view-header p {
-  font-size: 0.875rem;
-  color: #94a3b8;
-  margin-top: 4px;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* ── Global Focus Ring ────────────────────────────────────────────────── */
+
+[data-focus-visible] {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
