@@ -80,6 +80,15 @@ class SolverStatus(StrEnum):
     HEURISTIC = "heuristic"
 
 
+class PerishabilityTier(StrEnum):
+    """How quickly an ingredient spoils after purchase."""
+
+    HIGH = "high"  # 1-4 days: fresh herbs, berries, fish
+    MEDIUM = "medium"  # 5-10 days: milk, yogurt, fresh meat, soft cheese
+    LOW = "low"  # 11-21 days: eggs, hard cheese, root vegetables
+    STABLE = "stable"  # 21+ days or shelf-stable: canned, dried, frozen
+
+
 class MatchType(StrEnum):
     KEYWORD = "keyword"
     SEMANTIC = "semantic"
@@ -289,6 +298,36 @@ class GroceryItem:
 class GroceryList:
     plan_id: str
     items: list[GroceryItem] = field(default_factory=list)
+
+
+# ── Spoilage ─────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class SpoilageProfile:
+    """Perishability metadata for an ingredient."""
+
+    ingredient_name: str
+    tier: PerishabilityTier
+    shelf_life_days: int
+    typical_unit: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SpoilageConfig:
+    """Tuning knobs for spoilage-aware optimization.
+
+    spoilage_weight controls how much ingredient overlap affects scoring
+    relative to macro deviation. Kept intentionally small so the hierarchy
+    stays calorie → macro → spoilage.
+    """
+
+    spoilage_weight: float = 0.10
+    overlap_bonus_per_shared: float = 0.02
+    high_tier_multiplier: float = 1.0
+    medium_tier_multiplier: float = 0.5
+    low_tier_multiplier: float = 0.15
+    stable_tier_multiplier: float = 0.0
 
 
 # ── Optimization ──────────────────────────────────────────────────────────
