@@ -589,3 +589,81 @@ async def rebalance_plan(
     result = await _rebalance_plan(plan_id, member_id, strat)
 
     return RebalancedPlanSchema.model_validate(result)
+
+
+# ── View Tools (HTML Components) ────────────────────────────────────────
+
+# These tools return pre-rendered HTML strings that MCP clients can display
+# as rich interactive views. Each delegates to the same rendering logic
+# used by the FastAPI /api/views/* endpoints.
+
+
+@mcp.tool()
+async def show_macro_target_setter(
+    member_id: str | None = None,
+) -> str:
+    """Show an interactive macro target editor with sliders and pie chart.
+
+    The user can adjust protein, carbs, and fat targets and see real-time
+    calorie impact. Returns HTML that should be displayed to the user.
+    When the user clicks Save, the result contains the new macro values.
+    """
+    from mealmcp.api.views import macro_setter_view
+
+    response = await macro_setter_view(member_id)
+    return response.body.decode()
+
+
+@mcp.tool()
+async def show_recipe_selector(
+    query: str = "",
+    category: str | None = None,
+    tags: list[str] | None = None,
+    max_results: int = 20,
+) -> str:
+    """Show a visual recipe browser with cards, category filters, and macro badges.
+
+    Displays search results in a responsive grid. The user selects a recipe
+    and the result contains the chosen recipe_id for follow-up with
+    get_recipe_detail().
+    """
+    from mealmcp.api.views import recipe_selector_view
+
+    tags_str = ",".join(tags) if tags else None
+    response = await recipe_selector_view(query, category, tags_str, max_results)
+    return response.body.decode()
+
+
+@mcp.tool()
+async def show_weekly_calendar(
+    plan_id: str,
+    member_id: str | None = None,
+) -> str:
+    """Show a 7-day meal plan calendar with macro variance indicators.
+
+    Displays all meals per day with color-coded progress bars showing
+    proximity to daily macro targets. Includes action buttons for
+    optimize, rebalance, and refresh.
+    """
+    from mealmcp.api.views import weekly_calendar_view
+
+    response = await weekly_calendar_view(plan_id, member_id)
+    return response.body.decode()
+
+
+@mcp.tool()
+async def show_grocery_checklist(
+    plan_id: str,
+    merge_similar: bool = True,
+    exclude_pantry: bool = True,
+) -> str:
+    """Show an interactive grocery checklist grouped by ingredient category.
+
+    Users can check off items they already have in their pantry. When they
+    click Confirm, the result contains only the unchecked items they need
+    to buy.
+    """
+    from mealmcp.api.views import grocery_list_view
+
+    response = await grocery_list_view(plan_id, merge_similar, exclude_pantry)
+    return response.body.decode()
