@@ -1,12 +1,14 @@
 import { StrictMode, useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
+import { Slider, SliderTrack, SliderThumb, SliderOutput, Label } from "react-aria-components";
 import { connectApp, callTool, getViewData, extractText } from "../bridge";
 import { Button, Card } from "../components";
-import { colors, spacing, font } from "../theme";
+import { tokens } from "../theme";
 import type { MacroSetterData } from "../types";
 import "../global.css";
+import styles from "./macro-setter.module.css";
 
-/* ── Pie Chart (Canvas) ─────────────────────────────────────────────── */
+/* ── Pie Chart (Canvas — JS tokens required) ─────────────────────────── */
 
 function MacroPieChart({
   protein,
@@ -29,23 +31,23 @@ function MacroPieChart({
     const size = canvas.width;
     const cx = size / 2;
     const cy = size / 2;
-    const r = size / 2 - 12;
+    const r = size / 2 - 16;
 
     ctx.clearRect(0, 0, size, size);
 
     if (totalCal === 0) {
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.strokeStyle = colors.border;
+      ctx.strokeStyle = tokens.color.border;
       ctx.lineWidth = 24;
       ctx.stroke();
       return;
     }
 
     const slices = [
-      { value: protein * 4, color: colors.protein },
-      { value: carbs * 4, color: colors.carbs },
-      { value: fat * 9, color: colors.fat },
+      { value: protein * 4, color: tokens.color.protein },
+      { value: carbs * 4, color: tokens.color.carbs },
+      { value: fat * 9, color: tokens.color.fat },
     ];
 
     let startAngle = -Math.PI / 2;
@@ -60,14 +62,14 @@ function MacroPieChart({
       startAngle += angle;
     }
 
-    ctx.fillStyle = colors.text;
-    ctx.font = `700 28px ${font.sans}`;
+    ctx.fillStyle = tokens.color.text;
+    ctx.font = `700 28px ${tokens.font.brand}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(String(Math.round(totalCal)), cx, cy - 8);
 
-    ctx.fillStyle = colors.textMuted;
-    ctx.font = `500 12px ${font.sans}`;
+    ctx.fillStyle = tokens.color.textMuted;
+    ctx.font = `500 12px ${tokens.font.brand}`;
     ctx.fillText("calories", cx, cy + 16);
   }, [protein, carbs, fat, totalCal]);
 
@@ -76,12 +78,12 @@ function MacroPieChart({
       ref={canvasRef}
       width={200}
       height={200}
-      style={{ display: "block", margin: "0 auto" }}
+      className={styles.pieCanvas}
     />
   );
 }
 
-/* ── Macro Slider ───────────────────────────────────────────────────── */
+/* ── Macro Slider (RAC) ──────────────────────────────────────────────── */
 
 function MacroSlider({
   label,
@@ -89,7 +91,7 @@ function MacroSlider({
   min,
   max,
   step,
-  color,
+  macro,
   unit,
   calPer,
   onChange,
@@ -99,65 +101,60 @@ function MacroSlider({
   min: number;
   max: number;
   step: number;
-  color: string;
+  macro: "protein" | "carbs" | "fat";
   unit: string;
   calPer: number;
   onChange: (v: number) => void;
 }) {
   const calContribution = Math.round(value * calPer);
+  const colorVar = `var(--color-${macro})`;
 
   return (
-    <div style={{ marginBottom: spacing.lg }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: spacing.sm,
-        }}
-      >
-        <label style={{ fontSize: "0.875rem", fontWeight: 600, color: colors.text }}>
-          {label}
-        </label>
-        <div style={{ display: "flex", alignItems: "baseline", gap: spacing.sm }}>
-          <span
-            style={{ fontSize: "1.25rem", fontWeight: 700, color, fontFamily: font.mono }}
-          >
-            {value}
-          </span>
-          <span style={{ fontSize: "0.75rem", color: colors.textMuted }}>{unit}</span>
-          <span
-            style={{ fontSize: "0.75rem", color: colors.textDim, marginLeft: spacing.xs }}
-          >
-            ({calContribution} cal)
-          </span>
+    <Slider
+      className={styles.slider}
+      minValue={min}
+      maxValue={max}
+      step={step}
+      value={value}
+      onChange={onChange}
+    >
+      <div className={styles.sliderHeader}>
+        <Label className={styles.sliderLabel}>{label}</Label>
+        <div className={styles.sliderValues}>
+          <SliderOutput
+            className={styles.sliderAmount}
+            {...{ style: { color: colorVar } as React.CSSProperties }}
+          />
+          <span className={styles.sliderUnit}>{unit}</span>
+          <span className={styles.sliderCals}>({calContribution} cal)</span>
         </div>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: "100%", accentColor: color, height: "6px", cursor: "pointer" }}
-      />
-    </div>
+      <SliderTrack
+        className={styles.rangeInput}
+        {...{ style: { accentColor: colorVar } as React.CSSProperties }}
+      >
+        <SliderThumb />
+      </SliderTrack>
+    </Slider>
   );
 }
 
-/* ── Legend Dot ──────────────────────────────────────────────────────── */
+/* ── Legend Dot ────────────────────────────────────────────────────────── */
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({ macro, label }: { macro: "protein" | "carbs" | "fat"; label: string }) {
+  const dotClass = macro === "protein" ? styles.dotProtein
+    : macro === "carbs" ? styles.dotCarbs
+    : styles.dotFat;
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-      <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+    <div className={styles.legendDot}>
+      <div className={`${styles.dot} ${dotClass}`} />
       {label}
     </div>
   );
 }
 
-/* ── Main App ───────────────────────────────────────────────────────── */
+/* ── Main App ─────────────────────────────────────────────────────────── */
 
 function MacroSetterApp() {
   const data = getViewData<MacroSetterData>();
@@ -170,12 +167,10 @@ function MacroSetterApp() {
 
   const totalCalories = Math.round(protein * 4 + carbs * 4 + fat * 9);
 
-  // Connect to MCP host on mount (no-op in standalone mode)
   useEffect(() => {
     const app = connectApp("Macro Setter");
     app.then((a) => {
       if (!a) return;
-      // Receive refreshed targets pushed by the host
       a.ontoolresult = ({ content }) => {
         const text = extractText({ content });
         if (!text) return;
@@ -215,14 +210,7 @@ function MacroSetterApp() {
         <p>Adjust your daily macro goals and see calorie impact in real time.</p>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 240px",
-          gap: spacing.xl,
-          alignItems: "start",
-        }}
-      >
+      <div className={styles.grid}>
         <Card>
           <MacroSlider
             label="Protein"
@@ -230,7 +218,7 @@ function MacroSetterApp() {
             min={50}
             max={350}
             step={5}
-            color={colors.protein}
+            macro="protein"
             unit="g"
             calPer={4}
             onChange={setProtein}
@@ -241,7 +229,7 @@ function MacroSetterApp() {
             min={50}
             max={500}
             step={5}
-            color={colors.carbs}
+            macro="carbs"
             unit="g"
             calPer={4}
             onChange={setCarbs}
@@ -252,44 +240,30 @@ function MacroSetterApp() {
             min={20}
             max={200}
             step={5}
-            color={colors.fat}
+            macro="fat"
             unit="g"
             calPer={9}
             onChange={setFat}
           />
         </Card>
 
-        <Card
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: spacing.md,
-          }}
-        >
+        <Card className={styles.pieCard}>
           <MacroPieChart protein={protein} carbs={carbs} fat={fat} />
-          <div style={{ display: "flex", gap: spacing.md, fontSize: "0.75rem" }}>
-            <LegendDot color={colors.protein} label="Protein" />
-            <LegendDot color={colors.carbs} label="Carbs" />
-            <LegendDot color={colors.fat} label="Fat" />
+          <div className={styles.legend}>
+            <LegendDot macro="protein" label="Protein" />
+            <LegendDot macro="carbs" label="Carbs" />
+            <LegendDot macro="fat" label="Fat" />
           </div>
         </Card>
       </div>
 
-      <div
-        style={{
-          marginTop: spacing.xl,
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: spacing.md,
-        }}
-      >
-        <Button variant="secondary" onClick={handleReset}>
+      <div className={styles.actions}>
+        <Button variant="secondary" onPress={handleReset}>
           Reset
         </Button>
         <Button
-          onClick={handleSave}
-          style={saved ? { background: colors.success } : undefined}
+          onPress={handleSave}
+          className={saved ? styles.saved : undefined}
         >
           {saved ? "Saved!" : "Save Targets"}
         </Button>
