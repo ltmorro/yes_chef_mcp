@@ -59,7 +59,7 @@ export interface GroceryList {
   items: GroceryItem[];
 }
 
-/** View data payloads injected by the server. */
+/** View data payloads injected by the backend. */
 
 export interface MacroSetterData {
   current_targets?: {

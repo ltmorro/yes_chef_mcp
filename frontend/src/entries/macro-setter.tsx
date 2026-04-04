@@ -1,10 +1,10 @@
 import { StrictMode, useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { Slider, SliderTrack, SliderThumb, SliderOutput, Label } from "react-aria-components";
-import { connectApp, callTool, getViewData, extractText } from "../bridge";
+import { connectApp, callTool, getViewData, extractText } from "../bridge.ts";
 import { Button, Card } from "../components";
-import { tokens } from "../theme";
-import type { MacroSetterData } from "../types";
+import { tokens } from "../theme.ts";
+import type { MacroSetterData } from "../types.ts";
 import "../global.css";
 import styles from "./macro-setter.module.css";
 

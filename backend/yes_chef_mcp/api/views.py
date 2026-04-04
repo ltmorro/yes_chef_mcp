@@ -19,7 +19,9 @@ from yes_chef_mcp.mcp.server import (
     get_meal_plan_summary,
     search_recipes_by_query,
 )
-from yes_chef_mcp.views import DIST_DIR
+
+# Vite build output lives in frontend/dist/ at the repo root (sibling of backend/)
+DIST_DIR = Path(__file__).parents[3] / "frontend" / "dist"
 
 router = APIRouter(tags=["views"])
 

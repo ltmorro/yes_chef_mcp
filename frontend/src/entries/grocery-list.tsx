@@ -1,9 +1,9 @@
 import { StrictMode, useState, useMemo, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { Checkbox } from "react-aria-components";
-import { connectApp, callTool, getViewData } from "../bridge";
+import { connectApp, callTool, getViewData } from "../bridge.ts";
 import { Button, Card } from "../components";
-import type { GroceryItem, GroceryListData } from "../types";
+import type { GroceryItem, GroceryListData } from "../types.ts";
 import "../global.css";
 import styles from "./grocery-list.module.css";
 

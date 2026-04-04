@@ -1,4 +1,4 @@
-"""FastMCP server with tool definitions.
+"""FastMCP backend with tool definitions.
 
 This module defines all MCP tools that Claude Desktop and other MCP clients
 can call. Each tool delegates to the core library for actual logic.

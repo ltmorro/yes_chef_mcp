@@ -1,11 +1,11 @@
-# server/CLAUDE.md
+# backend/CLAUDE.md
 
 ## Quick Reference
 
 ```bash
 # All commands run from this directory
 uv sync --all-extras          # Install deps
-uv run uvicorn yes_chef_mcp.app:app --reload  # Run server
+uv run uvicorn yes_chef_mcp.app:app --reload  # Run backend
 uv run pytest                 # Tests
 uv run pytest --cov=yes_chef_mcp --cov-report=term-missing  # Coverage
 uv run ruff check .           # Lint
@@ -17,7 +17,7 @@ uv run mypy yes_chef_mcp/          # Type check
 
 `yes_chef_mcp/app.py` — unified FastAPI + FastMCP ASSI app.
 - REST API mounted at `/api/` (routes in `yes_chef_mcp/api/routes.py`)
-- MCP SSE endpoint at `/mcp/sse` (tools in `yes_chef_mcp/mcp/server.py`)
+- MCP HTTP endpoint at `/mcp` (tools in `yes_chef_mcp/mcp/server.py`)
 
 Both share one process and one SQLite database.
 

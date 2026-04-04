@@ -1,8 +1,8 @@
 import { StrictMode, useState, useMemo, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { connectApp, callTool, getViewData } from "../bridge";
+import { connectApp, callTool, getViewData } from "../bridge.ts";
 import { Button, Card, ProgressBar } from "../components";
-import type { DaySummary, MacroSummary, MealComponent, WeeklyCalendarData } from "../types";
+import type { DaySummary, MacroSummary, MealComponent, WeeklyCalendarData } from "../types.ts";
 import "../global.css";
 import styles from "./weekly-calendar.module.css";
 

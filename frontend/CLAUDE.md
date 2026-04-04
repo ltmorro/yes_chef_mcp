@@ -1,6 +1,6 @@
 # views/CLAUDE.md — Frontend Architecture Rules
 
-> These rules govern all React TSX code under `server/yes_chef_mcp/views/`.
+> These rules govern all React TSX code under `frontend/`.
 > AI coding agents and human contributors must follow them exactly.
 
 ---
