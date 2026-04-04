@@ -11,14 +11,13 @@ progressively drops soft constraints until a solution is found.
 
 from __future__ import annotations
 
-import math
-import random
 import time
 from dataclasses import dataclass, field
 
 from mealmcp.core.constraint_relaxer import RelaxationState, iterate_relaxations
 from mealmcp.core.db import get_db
 from mealmcp.core.models import (
+    Ingredient,
     MacroSummary,
     MacroTarget,
     MealComponent,
@@ -26,18 +25,20 @@ from mealmcp.core.models import (
     MealSlot,
     MealType,
     Nutrition,
+    OptimizationObjective,
     OptimizedMeal,
     OptimizedPlan,
-    OptimizationObjective,
     PinnedSlot,
     PlanConstraints,
     RebalancedPlan,
     RebalanceStrategy,
     SolverResult,
     SolverStatus,
+    SpoilageConfig,
 )
 from mealmcp.core.planner import get_meal_plan, get_meal_slots
 from mealmcp.core.recipe_store import get_nutrition_batch, list_recipes
+from mealmcp.core.spoilage import ingredient_overlap_bonus
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +54,7 @@ class _CandidateRecipe:
     protein_g: float
     carbs_g: float
     fat_g: float
+    ingredients: list[Ingredient] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -123,6 +125,7 @@ async def _load_candidates(
                 protein_g=nutr.protein_g,
                 carbs_g=nutr.carbs_g,
                 fat_g=nutr.fat_g,
+                ingredients=r.ingredients,
             )
         )
 
@@ -155,10 +158,18 @@ def _greedy_meal_solve(
     required_ids: list[str] | None,
     objective: OptimizationObjective,
     relaxation: RelaxationState,
+    spoilage_config: SpoilageConfig | None = None,
 ) -> list[_MealAssignment]:
-    """Greedy heuristic: pick recipes that minimize deviation, one at a time."""
+    """Greedy heuristic: pick recipes that minimize deviation, one at a time.
+
+    When spoilage_config is provided, ingredient overlap among perishable items
+    acts as a small tiebreaker. The overlap bonus is scaled by
+    spoilage_config.spoilage_weight (default 0.10) so it never dominates
+    macro deviation.
+    """
     assignments: list[_MealAssignment] = []
     used_ids: set[str] = set()
+    sp_cfg = spoilage_config or SpoilageConfig()
 
     # Add required recipes first
     if required_ids:
@@ -176,6 +187,9 @@ def _greedy_meal_solve(
         best_score = float("inf")
         best_candidate: _CandidateRecipe | None = None
 
+        # Collect existing ingredient lists for overlap scoring
+        existing_ingredient_lists = [a.recipe.ingredients for a in assignments]
+
         for c in remaining:
             # Check constraints
             if constraints:
@@ -191,8 +205,8 @@ def _greedy_meal_solve(
                 if constraints.required_tags and not set(constraints.required_tags) & set(c.tags):
                     continue
 
-            # Score: sum of deviations across members
-            score = 0.0
+            # Primary score: sum of macro deviations across members
+            macro_score = 0.0
             for mid, target in member_targets.items():
                 current = _sum_macros(assignments, mid)
                 projected = MacroSummary(
@@ -201,7 +215,15 @@ def _greedy_meal_solve(
                     carbs_g=current.carbs_g + c.carbs_g,
                     fat_g=current.fat_g + c.fat_g,
                 )
-                score += _macro_deviation(projected, target)
+                macro_score += _macro_deviation(projected, target)
+
+            # Tertiary score: spoilage overlap bonus (subtracted = lower is better)
+            spoilage_bonus = 0.0
+            if existing_ingredient_lists:
+                candidate_lists = [*existing_ingredient_lists, c.ingredients]
+                spoilage_bonus = ingredient_overlap_bonus(candidate_lists, sp_cfg)
+
+            score = macro_score - (spoilage_bonus * sp_cfg.spoilage_weight)
 
             if score < best_score:
                 best_score = score
@@ -278,6 +300,7 @@ async def optimize_meal(
     max_components: int = 4,
     allow_fractional_servings: bool = True,
     num_alternatives: int = 3,
+    spoilage_config: SpoilageConfig | None = None,
 ) -> list[OptimizedMeal]:
     """Optimize a single meal for multiple members.
 
@@ -316,6 +339,7 @@ async def optimize_meal(
                 required_recipe_ids,
                 objective,
                 relaxation,
+                spoilage_config=spoilage_config,
             )
             if assignments:
                 elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -360,6 +384,7 @@ async def optimize_plan(
     constraints: PlanConstraints | None = None,
     objective: OptimizationObjective = OptimizationObjective.MINIMIZE_DEVIATION,
     max_components_per_meal: int = 3,
+    spoilage_config: SpoilageConfig | None = None,
 ) -> OptimizedPlan:
     """Fill empty slots in a meal plan optimally.
 
@@ -429,6 +454,7 @@ async def optimize_plan(
                 objective=objective,
                 max_components=max_components_per_meal,
                 num_alternatives=1,
+                spoilage_config=spoilage_config,
             )
 
             if meal_results:
@@ -632,8 +658,8 @@ def _adjust_servings(
 ) -> list[MealSlot]:
     """Adjust serving sizes to minimize macro deviation using scipy."""
     try:
-        from scipy.optimize import minimize as scipy_minimize
         import numpy as np
+        from scipy.optimize import minimize as scipy_minimize
     except ImportError:
         return list(slots)
 
