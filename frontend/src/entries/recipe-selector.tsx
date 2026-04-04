@@ -1,8 +1,8 @@
 import { StrictMode, useState, useMemo, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { connectApp, callTool, getViewData } from "../bridge";
+import { connectApp, callTool, getViewData } from "../bridge.ts";
 import { Button, Card, MacroBadgeRow } from "../components";
-import type { RecipeHit, RecipeSelectorData } from "../types";
+import type { RecipeHit, RecipeSelectorData } from "../types.ts";
 import "../global.css";
 import styles from "./recipe-selector.module.css";
 

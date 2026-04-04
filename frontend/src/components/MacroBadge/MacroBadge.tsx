@@ -1,4 +1,4 @@
-import type { MacroSummary } from "../../types";
+import type { MacroSummary } from "../../types.ts";
 import styles from "./MacroBadge.module.css";
 
 type MacroType = "protein" | "carbs" | "fat" | "calories";

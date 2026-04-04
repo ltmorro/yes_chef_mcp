@@ -54,7 +54,7 @@ export async function connectApp(name: string): Promise<McpApp | null> {
 }
 
 /**
- * Call a server-side MCP tool from within the app UI.
+ * Call a backend-side MCP tool from within the app UI.
  *
  * In MCP context: routes through the host's postMessage channel.
  * In standalone mode: dispatches a CustomEvent for the host page to handle.
@@ -76,7 +76,7 @@ export async function callTool(
 }
 
 /**
- * Parse initial data injected by the server into `<script id="view-data">`.
+ * Parse initial data injected by the backend into `<script id="view-data">`.
  *
  * Used in both MCP and standalone modes. The MCP host also pushes tool
  * results via ontoolresult, but the initial data payload is always
