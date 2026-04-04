@@ -69,12 +69,11 @@ async def list_meal_plans(family_id: str | None = None) -> list[MealPlan]:
     condition = " WHERE family_id = ?" if family_id else ""
     params: list[str] = [family_id] if family_id else []
 
-    async with get_db() as db:
-        async with db.execute(
-            f"SELECT * FROM meal_plans{condition} ORDER BY start_date DESC",
-            params,
-        ) as cursor:
-            rows = await cursor.fetchall()
+    async with get_db() as db, db.execute(
+        f"SELECT * FROM meal_plans{condition} ORDER BY start_date DESC",
+        params,
+    ) as cursor:
+        rows = await cursor.fetchall()
 
     plans: list[MealPlan] = []
     for row in rows:
@@ -141,12 +140,11 @@ async def get_meal_slots(
 
     where = " AND ".join(conditions)
 
-    async with get_db() as db:
-        async with db.execute(
-            f"SELECT * FROM meal_slots WHERE {where} ORDER BY day_offset, meal_type",
-            params,
-        ) as cursor:
-            rows = await cursor.fetchall()
+    async with get_db() as db, db.execute(
+        f"SELECT * FROM meal_slots WHERE {where} ORDER BY day_offset, meal_type",
+        params,
+    ) as cursor:
+        rows = await cursor.fetchall()
 
     return [
         MealSlot(

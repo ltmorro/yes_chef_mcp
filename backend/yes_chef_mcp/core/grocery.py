@@ -82,7 +82,7 @@ async def generate_grocery_list(
 class _AggItem:
     """Mutable accumulator for ingredient aggregation."""
 
-    __slots__ = ("name", "quantity", "unit", "recipe_sources")
+    __slots__ = ("name", "quantity", "recipe_sources", "unit")
 
     def __init__(self) -> None:
         self.name: str = ""
