@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from mealmcp.core.models import Recipe, RecipeCategory
-from mealmcp.core.search import hybrid_search, macro_distance_search
+from yes_chef_mcp.core.models import Recipe, RecipeCategory
+from yes_chef_mcp.core.search import hybrid_search, macro_distance_search
 
 
 async def test_fts_search_by_name(sample_recipes: list[Recipe]) -> None:

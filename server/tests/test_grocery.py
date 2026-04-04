@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from mealmcp.core.grocery import generate_grocery_list
-from mealmcp.core.models import MealType, Recipe
-from mealmcp.core.planner import add_meal_slot, create_meal_plan
+from yes_chef_mcp.core.grocery import generate_grocery_list
+from yes_chef_mcp.core.models import MealType, Recipe
+from yes_chef_mcp.core.planner import add_meal_slot, create_meal_plan
 
 
 async def test_generate_grocery_list(

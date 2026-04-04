@@ -1009,7 +1009,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mealmcp"
+name = "yes_chef_mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

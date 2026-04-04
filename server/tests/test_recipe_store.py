@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from mealmcp.core.models import Recipe, RecipeCategory
-from mealmcp.core.recipe_store import (
+from yes_chef_mcp.core.models import Recipe, RecipeCategory
+from yes_chef_mcp.core.recipe_store import (
     delete_recipe,
     get_nutrition,
     get_recipe,

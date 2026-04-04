@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**MealMCP** (Yes Chef) — self-hosted meal planning MCP server with macro-nutrient optimization.
+**yes_chef_mcp** (Yes Chef) — self-hosted meal planning MCP server with macro-nutrient optimization.
 
 ## Code Conventions
 

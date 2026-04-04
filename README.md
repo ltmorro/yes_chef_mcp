@@ -24,7 +24,7 @@ cd server
 uv sync --all-extras
 
 # Run the server
-uv run uvicorn mealmcp.app:app --reload
+uv run uvicorn yes_chef_mcp.app:app --reload
 ```
 
 The server starts with:
@@ -47,7 +47,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 
 ## Configuration
 
-- **Database path**: defaults to `/data/mealmcp.db`, configurable via `configure_database()` in `core/db.py`
+- **Database path**: defaults to `/data/yes_chef_mcp.db`, configurable via `configure_database()` in `core/db.py`
 - **Nutrition APIs** (optional): USDA FoodData Central and Nutritionix keys are passed to `NutritionEnricher` at construction time
 
 ## Development
@@ -66,13 +66,13 @@ uv run ruff check .
 uv run ruff format .
 
 # Type check
-uv run mypy mealmcp/
+uv run mypy yes_chef_mcp/
 ```
 
 ## Architecture
 
 ```
-server/mealmcp/
+server/yes_chef_mcp/
 ├── app.py                # Unified FastAPI + FastMCP entry point
 ├── api/routes.py         # REST API endpoints
 ├── mcp/server.py         # MCP tool definitions
