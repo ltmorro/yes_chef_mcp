@@ -7,6 +7,7 @@ readers with a single writer. Loads sqlite-vec extension for vector search.
 from __future__ import annotations
 
 import contextlib
+import os
 import sqlite3
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -15,7 +16,7 @@ from pathlib import Path
 import aiosqlite
 import sqlite_vec
 
-_DB_PATH: Path = Path("/data/yes_chef_mcp.db")
+_DB_PATH: Path = Path(os.getenv("YES_CHEF_DB_PATH", "data/yes_chef_mcp.db"))
 _schema_initialized: bool = False
 
 SCHEMA_VERSION = 1
@@ -144,7 +145,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS recipes_fts USING fts5(
 
 def _load_extensions(conn: aiosqlite.Connection) -> None:
     """Load sqlite-vec extension for vector similarity search."""
-    raw: sqlite3.Connection = conn._conn  # noqa: SLF001
+    raw: sqlite3.Connection = conn._conn
     raw.enable_load_extension(True)
     sqlite_vec.load(raw)
     raw.enable_load_extension(False)

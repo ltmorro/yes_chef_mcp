@@ -27,19 +27,18 @@ def _rrf_score(rank: int, k: int = 60) -> float:
 
 async def _fts_search(query: str, limit: int) -> list[tuple[str, float]]:
     """Full-text search returning (recipe_id, rank) pairs."""
-    async with get_db() as db:
-        async with db.execute(
-            """
+    async with get_db() as db, db.execute(
+        """
             SELECT recipe_id, rank
             FROM recipes_fts
             WHERE recipes_fts MATCH ?
             ORDER BY rank
             LIMIT ?
             """,
-            (query, limit),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [(str(row["recipe_id"]), float(str(row["rank"]))) for row in rows]
+        (query, limit),
+    ) as cursor:
+        rows = await cursor.fetchall()
+        return [(str(row["recipe_id"]), float(str(row["rank"]))) for row in rows]
 
 
 async def _vector_search(
@@ -48,19 +47,18 @@ async def _vector_search(
 ) -> list[tuple[str, float]]:
     """Vector similarity search returning (recipe_id, distance) pairs."""
     vec_blob = struct.pack(f"{len(embedding)}f", *embedding)
-    async with get_db() as db:
-        async with db.execute(
-            """
+    async with get_db() as db, db.execute(
+        """
             SELECT recipe_id, distance
             FROM vec_recipes
             WHERE embedding MATCH ?
             ORDER BY distance
             LIMIT ?
             """,
-            (vec_blob, limit),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [(str(row["recipe_id"]), float(str(row["distance"]))) for row in rows]
+        (vec_blob, limit),
+    ) as cursor:
+        rows = await cursor.fetchall()
+        return [(str(row["recipe_id"]), float(str(row["distance"]))) for row in rows]
 
 
 async def _fetch_recipe_metadata(
@@ -70,13 +68,12 @@ async def _fetch_recipe_metadata(
     if not recipe_ids:
         return {}
     placeholders = ",".join("?" for _ in recipe_ids)
-    async with get_db() as db:
-        async with db.execute(
-            f"SELECT id, name, category, tags, prep_minutes, cook_minutes "
-            f"FROM recipes WHERE id IN ({placeholders})",
-            recipe_ids,
-        ) as cursor:
-            rows = await cursor.fetchall()
+    async with get_db() as db, db.execute(
+        f"SELECT id, name, category, tags, prep_minutes, cook_minutes "
+        f"FROM recipes WHERE id IN ({placeholders})",
+        recipe_ids,
+    ) as cursor:
+        rows = await cursor.fetchall()
     return {str(row["id"]): dict(row) for row in rows}
 
 
@@ -227,18 +224,17 @@ async def macro_distance_search(
 
     where = f" AND {' AND '.join(conditions)}" if conditions else ""
 
-    async with get_db() as db:
-        async with db.execute(
-            f"""
+    async with get_db() as db, db.execute(
+        f"""
             SELECT r.id, r.name, r.category, r.tags, r.prep_minutes, r.cook_minutes,
                    n.calories, n.protein_g, n.carbs_g, n.fat_g
             FROM recipes r
             JOIN nutrition n ON r.id = n.recipe_id
             WHERE 1=1{where}
             """,
-            params,
-        ) as cursor:
-            rows = await cursor.fetchall()
+        params,
+    ) as cursor:
+        rows = await cursor.fetchall()
 
     # Compute distances
     scored: list[tuple[dict[str, str | int | float | None], float]] = []

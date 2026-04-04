@@ -171,9 +171,8 @@ async def list_recipes(
     query = f"SELECT r.* FROM recipes r{where} ORDER BY r.name LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
-    async with get_db() as db:
-        async with db.execute(query, params) as cursor:
-            rows = await cursor.fetchall()
+    async with get_db() as db, db.execute(query, params) as cursor:
+        rows = await cursor.fetchall()
 
     return [_row_to_recipe(row) for row in rows]
 
@@ -239,12 +238,11 @@ async def get_nutrition_batch(recipe_ids: list[str]) -> dict[str, Nutrition]:
     if not recipe_ids:
         return {}
     placeholders = ",".join("?" for _ in recipe_ids)
-    async with get_db() as db:
-        async with db.execute(
-            f"SELECT * FROM nutrition WHERE recipe_id IN ({placeholders})",
-            recipe_ids,
-        ) as cursor:
-            rows = await cursor.fetchall()
+    async with get_db() as db, db.execute(
+        f"SELECT * FROM nutrition WHERE recipe_id IN ({placeholders})",
+        recipe_ids,
+    ) as cursor:
+        rows = await cursor.fetchall()
     return {str(row["recipe_id"]): _row_to_nutrition(row) for row in rows}
 
 
@@ -300,9 +298,8 @@ async def list_all_tags(family_id: str | None = None) -> list[str]:
         ORDER BY tag
     """
 
-    async with get_db() as db:
-        async with db.execute(query, params) as cursor:
-            rows = await cursor.fetchall()
+    async with get_db() as db, db.execute(query, params) as cursor:
+        rows = await cursor.fetchall()
     return [str(row["tag"]) for row in rows]
 
 
@@ -311,11 +308,10 @@ async def list_all_categories(family_id: str | None = None) -> list[str]:
     condition = " WHERE family_id = ?" if family_id else ""
     params: list[str] = [family_id] if family_id else []
 
-    async with get_db() as db:
-        async with db.execute(
-            f"SELECT DISTINCT category FROM recipes{condition} "
-            "WHERE category IS NOT NULL ORDER BY category",
-            params,
-        ) as cursor:
-            rows = await cursor.fetchall()
+    async with get_db() as db, db.execute(
+        f"SELECT DISTINCT category FROM recipes{condition} "
+        "WHERE category IS NOT NULL ORDER BY category",
+        params,
+    ) as cursor:
+        rows = await cursor.fetchall()
     return [str(row["category"]) for row in rows]

@@ -14,7 +14,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from yes_chef_mcp.api.routes import router
-from yes_chef_mcp.api.views import DIST_DIR, router as views_router
+from yes_chef_mcp.api.views import DIST_DIR
+from yes_chef_mcp.api.views import router as views_router
 from yes_chef_mcp.core.db import get_db
 from yes_chef_mcp.mcp.server import mcp
 
@@ -28,13 +29,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("yes_chef_mcp starting — initializing database")
     async with get_db():
         pass
-    
+
     if hasattr(mcp_app, "lifespan") and mcp_app.lifespan:
         async with mcp_app.lifespan(app):
             yield
     else:
         yield
-        
+
     logger.info("yes_chef_mcp shutting down")
 
 

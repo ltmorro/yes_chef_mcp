@@ -18,46 +18,44 @@ from yes_chef_mcp.core.search import macro_distance_search
 
 async def _get_active_target(member_id: str) -> MacroTarget | None:
     """Fetch the active macro target for a member."""
-    async with get_db() as db:
-        async with db.execute(
-            "SELECT * FROM macro_targets WHERE member_id = ? AND is_active = 1",
-            (member_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return MacroTarget(
-                id=str(row["id"]),
-                member_id=str(row["member_id"]),
-                name=str(row["name"]),
-                calories=float(str(row["calories"])),
-                protein_g=float(str(row["protein_g"])),
-                carbs_g=float(str(row["carbs_g"])),
-                fat_g=float(str(row["fat_g"])),
-                is_active=True,
-            )
+    async with get_db() as db, db.execute(
+        "SELECT * FROM macro_targets WHERE member_id = ? AND is_active = 1",
+        (member_id,),
+    ) as cursor:
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return MacroTarget(
+            id=str(row["id"]),
+            member_id=str(row["member_id"]),
+            name=str(row["name"]),
+            calories=float(str(row["calories"])),
+            protein_g=float(str(row["protein_g"])),
+            carbs_g=float(str(row["carbs_g"])),
+            fat_g=float(str(row["fat_g"])),
+            is_active=True,
+        )
 
 
 async def _get_named_target(member_id: str, target_name: str) -> MacroTarget | None:
     """Fetch a specific named macro target for a member."""
-    async with get_db() as db:
-        async with db.execute(
-            "SELECT * FROM macro_targets WHERE member_id = ? AND name = ?",
-            (member_id, target_name),
-        ) as cursor:
-            row = await cursor.fetchone()
-            if row is None:
-                return None
-            return MacroTarget(
-                id=str(row["id"]),
-                member_id=str(row["member_id"]),
-                name=str(row["name"]),
-                calories=float(str(row["calories"])),
-                protein_g=float(str(row["protein_g"])),
-                carbs_g=float(str(row["carbs_g"])),
-                fat_g=float(str(row["fat_g"])),
-                is_active=bool(row["is_active"]),
-            )
+    async with get_db() as db, db.execute(
+        "SELECT * FROM macro_targets WHERE member_id = ? AND name = ?",
+        (member_id, target_name),
+    ) as cursor:
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return MacroTarget(
+            id=str(row["id"]),
+            member_id=str(row["member_id"]),
+            name=str(row["name"]),
+            calories=float(str(row["calories"])),
+            protein_g=float(str(row["protein_g"])),
+            carbs_g=float(str(row["carbs_g"])),
+            fat_g=float(str(row["fat_g"])),
+            is_active=bool(row["is_active"]),
+        )
 
 
 async def compose_meal(

@@ -27,7 +27,6 @@ from yes_chef_mcp.core.models import (
     SolverStatus,
 )
 
-
 # ── Shared / Reusable ────────────────────────────────────────────────────
 
 

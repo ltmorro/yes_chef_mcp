@@ -14,27 +14,31 @@ from fastmcp.apps import AppConfig, ResourceCSP
 
 from yes_chef_mcp.core.db import get_db
 from yes_chef_mcp.core.grocery import generate_grocery_list as _generate_grocery
-from yes_chef_mcp.core.meal_composer import compose_meal as _compose, suggest_complements
+from yes_chef_mcp.core.meal_composer import compose_meal as _compose
+from yes_chef_mcp.core.meal_composer import suggest_complements
 from yes_chef_mcp.core.models import (
     DetailLevel,
     MealComponent,
     MealType,
-    OptimizationObjective,
     RebalanceStrategy,
     RecipeCategory,
 )
 from yes_chef_mcp.core.optimizer import (
     optimize_meal as _optimize_meal,
+)
+from yes_chef_mcp.core.optimizer import (
     optimize_plan as _optimize_plan,
+)
+from yes_chef_mcp.core.optimizer import (
     rebalance_plan as _rebalance_plan,
 )
 from yes_chef_mcp.core.planner import (
     add_meal_slot,
-    create_meal_plan as _create_plan,
     get_meal_plan,
     get_meal_slots,
-    list_meal_plans,
-    remove_meal_slot,
+)
+from yes_chef_mcp.core.planner import (
+    create_meal_plan as _create_plan,
 )
 from yes_chef_mcp.core.recipe_store import (
     get_nutrition,
@@ -92,8 +96,8 @@ async def search_recipes_by_query(
 
     embedding: list[float] | None = None
     try:
-        from yes_chef_mcp.pipeline.embeddings import generate_embedding
         from yes_chef_mcp.core.models import Recipe
+        from yes_chef_mcp.pipeline.embeddings import generate_embedding
 
         dummy = Recipe(id="", family_id="", name=query, source="manual")  # type: ignore[arg-type]
         embedding = generate_embedding(dummy)
@@ -655,8 +659,8 @@ async def show_recipe_selector(
     cat = RecipeCategory(category) if category else None
     embedding: list[float] | None = None
     try:
-        from yes_chef_mcp.pipeline.embeddings import generate_embedding
         from yes_chef_mcp.core.models import Recipe
+        from yes_chef_mcp.pipeline.embeddings import generate_embedding
 
         dummy = Recipe(id="", family_id="", name=query, source="manual")  # type: ignore[arg-type]
         embedding = generate_embedding(dummy)

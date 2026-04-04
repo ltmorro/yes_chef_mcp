@@ -3,18 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from yes_chef_mcp.core.db import get_db
 from yes_chef_mcp.core.meal_composer import compose_meal
 from yes_chef_mcp.core.models import (
-    DetailLevel,
     MealComponent,
     MealType,
-    OptimizationObjective,
-    RebalanceStrategy,
     RecipeCategory,
 )
 from yes_chef_mcp.core.planner import (
@@ -30,17 +26,16 @@ from yes_chef_mcp.core.schemas import (
     CreateMealPlanRequest,
     CreateMemberRequest,
     GroceryListSchema,
-    MacroSummarySchema,
+    MacroTargetSchema,
     MealCompositionSchema,
     MealPlanSchema,
     MealPlanSummarySchema,
     MealSlotSchema,
-    MacroTargetSchema,
     MemberSchema,
-    OptimizeMealRequest,
     OptimizedMealSchema,
-    RebalancePlanRequest,
+    OptimizeMealRequest,
     RebalancedPlanSchema,
+    RebalancePlanRequest,
     RecipeDetailSchema,
     RecipeSearchPageSchema,
     SetMacroTargetRequest,

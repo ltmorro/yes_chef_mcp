@@ -33,6 +33,6 @@ uv run pytest -k "test_hybrid"       # By name
 
 ## Configuration
 
-- Database path defaults to `/data/yes_chef_mcp.db`, override via `core.db.configure_database()`
+- Database path defaults to `data/yes_chef_mcp.db`, override via `YES_CHEF_DB_PATH` env var or `core.db.configure_db_path()`
 - Nutrition API keys passed as constructor args to `pipeline.nutrition.NutritionEnricher`
 - All tool config (ruff, mypy, pytest) lives in `pyproject.toml`

@@ -10,7 +10,6 @@ from yes_chef_mcp.core.spoilage import (
     plan_spoilage_penalty,
 )
 
-
 # ── classify_ingredient ──────────────────────────────────────────────────
 
 
