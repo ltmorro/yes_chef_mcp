@@ -55,3 +55,7 @@ disallow_any_explicit = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.uv]
+required-environments = ["sys_platform == 'darwin' and platform_machine == 'x86_64'"]
+constraint-dependencies = ["cbcbox<=2.902"]

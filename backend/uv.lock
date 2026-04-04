@@ -1,6 +1,16 @@
 version = 1
 revision = 3
 requires-python = ">=3.12"
+resolution-markers = [
+    "platform_machine != 'x86_64' or sys_platform != 'darwin'",
+    "platform_machine == 'x86_64' and sys_platform == 'darwin'",
+]
+required-markers = [
+    "platform_machine == 'x86_64' and sys_platform == 'darwin'",
+]
+
+[manifest]
+constraints = [{ name = "cbcbox", specifier = "<=2.902" }]
 
 [[package]]
 name = "aiofile"
@@ -116,14 +126,14 @@ wheels = [
 
 [[package]]
 name = "cbcbox"
-version = "2.929"
+version = "2.902"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/9e/c41844f3a746500b88982817233f3f2f4fa6d3a554cedb9222bac9efcbea/cbcbox-2.929-py3-none-macosx_15_0_arm64.whl", hash = "sha256:610fd250f737b19f599d56cca299682a4519472b3ff6a13044502eb71e03931e", size = 59626733, upload-time = "2026-03-23T15:28:20.758Z" },
-    { url = "https://files.pythonhosted.org/packages/3f/08/172af0d618ede8668862ae9c83ffcd929bc966610c1ce357b268edb33645/cbcbox-2.929-py3-none-macosx_15_0_x86_64.whl", hash = "sha256:b369071081176fd55ba9d104c2f2330133c36f0264ebe0215c50a366f290a050", size = 87883726, upload-time = "2026-03-23T15:28:24.874Z" },
-    { url = "https://files.pythonhosted.org/packages/d4/c7/a57493dd959a57dcb8dc31aeef468c0e95d066d4bbf8fc59f9dda3a1fd97/cbcbox-2.929-py3-none-manylinux2014_aarch64.whl", hash = "sha256:62841ab4ed4e1c368bcba8d62c66cd7dd03f3dfaf1ecf4a01c6385a122d1946e", size = 145740150, upload-time = "2026-03-23T15:28:29.617Z" },
-    { url = "https://files.pythonhosted.org/packages/4c/86/502b81d060603e1016a8cb471064e4e65d8009c2feed60ea878b8513a728/cbcbox-2.929-py3-none-manylinux2014_x86_64.whl", hash = "sha256:a57a403cc44fb2af0aa53cb790a7642390f1836a5ff6a7a0b31b30eb6597e3e0", size = 181208771, upload-time = "2026-03-23T15:28:35.544Z" },
-    { url = "https://files.pythonhosted.org/packages/0c/85/2fef9c7c3054ebfb9b0e84fabbeac776a18514b025efa5abd768c889f560/cbcbox-2.929-py3-none-win_amd64.whl", hash = "sha256:0a91420befb965ec1763aab62d7908d3a89a51af845e2a4e05c09d99a67f1151", size = 135305901, upload-time = "2026-03-23T15:28:42.021Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/1a/32f438ade249ff6f238078f2500df30f12fc32e3cf0950086a7066cedda1/cbcbox-2.902-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:eb7f2a5ed2e7bdff111c61d7e97f204d197442a7c959908bd37183a02b0a3f78", size = 49187008, upload-time = "2026-02-25T05:38:20.186Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/af/c7f28a6ed537e961db2d5927ecbdd6f84067a1f1d404654cbd9653edd0a4/cbcbox-2.902-py3-none-macosx_11_0_arm64.whl", hash = "sha256:2003d9cdc20c5bb4d9610c403b94d0e7e782d092c90f2ceb05ab747424fbb36b", size = 42865887, upload-time = "2026-02-25T05:38:24.244Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/dd/064b75c617b7fce85327a25f6a0b98ca05c4659dd284f04883415dc68cf2/cbcbox-2.902-py3-none-manylinux2014_aarch64.whl", hash = "sha256:8a4e3e7f286a3359fa5bb062afeb9920d03bc93862481b36171c97b40a2410f2", size = 51143706, upload-time = "2026-02-25T05:38:28.942Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/fc/9b2d6dc679027ae4f99a1771801a8e87fb660e787a36bd98e0ca258ba39b/cbcbox-2.902-py3-none-manylinux2014_x86_64.whl", hash = "sha256:f9f9d948eaaf97453e5fcd476effd90df9c7a4e58fe8673fff50304a1a15995a", size = 56590835, upload-time = "2026-02-25T05:38:34.157Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/29/9db2707cb7ccb4fb44f157bcee30464cb2e9a62509966b8ec7592f9e267a/cbcbox-2.902-py3-none-win_amd64.whl", hash = "sha256:5d5407939815b178559820071f56ce69dc8d42d3faaa04a87e0475a9a62f0c1b", size = 41873336, upload-time = "2026-02-25T05:38:38.588Z" },
 ]
 
 [[package]]
@@ -355,7 +365,7 @@ name = "cuda-bindings"
 version = "13.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cuda-pathfinder" },
+    { name = "cuda-pathfinder", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/52/c8/b2589d68acf7e3d63e2be330b84bc25712e97ed799affbca7edd7eae25d6/cuda_bindings-13.2.0-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e865447abfb83d6a98ad5130ed3c70b1fc295ae3eeee39fd07b4ddb0671b6788", size = 5722404, upload-time = "2026-03-11T00:12:44.041Z" },
@@ -1009,62 +1019,16 @@ wheels = [
 ]
 
 [[package]]
-name = "yes_chef_mcp"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "aiosqlite" },
-    { name = "fastapi" },
-    { name = "fastmcp" },
-    { name = "httpx" },
-    { name = "mip" },
-    { name = "pydantic" },
-    { name = "scipy" },
-    { name = "sentence-transformers" },
-    { name = "sqlite-vec" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.20.0" },
-    { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "fastmcp", specifier = ">=2.0.0" },
-    { name = "httpx", specifier = ">=0.28.0" },
-    { name = "mip", specifier = ">=1.15.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
-    { name = "pydantic", specifier = ">=2.10.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
-    { name = "scipy", specifier = ">=1.14.0" },
-    { name = "sentence-transformers", specifier = ">=3.3.0" },
-    { name = "sqlite-vec", specifier = ">=0.1.6" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "mip"
-version = "1.17.6"
+version = "1.17"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cbcbox" },
     { name = "cffi" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/15/7496ce00eafc5b99e98bb696588527754d7629f11ac6208fdc9355f6eec6/mip-1.17.6.tar.gz", hash = "sha256:9da8074b80bd3ef788513d5a214ef832916d82aa66487da11a49c7da9f89d270", size = 9443716, upload-time = "2026-03-23T16:20:09.009Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/0e/b45c3788964982466f7152a8713e8f7c9459c16ebc80d0363009575427ae/mip-1.17.tar.gz", hash = "sha256:9db7993851413e0f371fe5c279fcce455cfbdfebda58eccb2cd81e11c1a4cafa", size = 9435999, upload-time = "2026-02-25T12:54:36.346Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/1d/0eb2531e779be687a3249e7f2ba5e465dd34611072390252e5fcf89e7fef/mip-1.17.6-py3-none-any.whl", hash = "sha256:4fb7ff5d7beacbe7d007de172306a76aff8fb36760fa63a5d88a8cb3aa6f4a57", size = 88214, upload-time = "2026-03-23T16:20:07.289Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/44/3f8d15c753b6514c2f3e3d3e789c74c8bffd22ab92489c0c157ec491a7e7/mip-1.17-py3-none-any.whl", hash = "sha256:83030f4f30b86b4f823789cc6bd74ce54934ef1d2fb9a12973a9818333888751", size = 88203, upload-time = "2026-02-25T12:54:34.797Z" },
 ]
 
 [[package]]
@@ -1248,7 +1212,7 @@ name = "nvidia-cudnn-cu13"
 version = "9.19.0.56"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas" },
+    { name = "nvidia-cublas", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/84/26025437c1e6b61a707442184fa0c03d083b661adf3a3eecfd6d21677740/nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:6ed29ffaee1176c612daf442e4dd6cfeb6a0caa43ddcbeb59da94953030b1be4", size = 433781201, upload-time = "2026-02-03T20:40:53.805Z" },
@@ -1260,7 +1224,7 @@ name = "nvidia-cufft"
 version = "12.0.0.61"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink" },
+    { name = "nvidia-nvjitlink", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/ae/f417a75c0259e85c1d2f83ca4e960289a5f814ed0cea74d18c353d3e989d/nvidia_cufft-12.0.0.61-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:2708c852ef8cd89d1d2068bdbece0aa188813a0c934db3779b9b1faa8442e5f5", size = 214053554, upload-time = "2025-09-04T08:31:38.196Z" },
@@ -1290,9 +1254,9 @@ name = "nvidia-cusolver"
 version = "12.0.4.66"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas" },
-    { name = "nvidia-cusparse" },
-    { name = "nvidia-nvjitlink" },
+    { name = "nvidia-cublas", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "nvidia-cusparse", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "nvidia-nvjitlink", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/c3/b30c9e935fc01e3da443ec0116ed1b2a009bb867f5324d3f2d7e533e776b/nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:02c2457eaa9e39de20f880f4bd8820e6a1cfb9f9a34f820eb12a155aa5bc92d2", size = 223467760, upload-time = "2025-09-04T08:33:04.222Z" },
@@ -1304,7 +1268,7 @@ name = "nvidia-cusparse"
 version = "12.6.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink" },
+    { name = "nvidia-nvjitlink", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/94/5c26f33738ae35276672f12615a64bd008ed5be6d1ebcb23579285d960a9/nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:80bcc4662f23f1054ee334a15c72b8940402975e0eab63178fc7e670aa59472c", size = 162155568, upload-time = "2025-09-04T08:33:42.864Z" },
@@ -2095,8 +2059,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "jeepney", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -2112,7 +2076,8 @@ dependencies = [
     { name = "numpy" },
     { name = "scikit-learn" },
     { name = "scipy" },
-    { name = "torch" },
+    { name = "torch", version = "2.2.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "tqdm" },
     { name = "transformers" },
     { name = "typing-extensions" },
@@ -2227,23 +2192,45 @@ wheels = [
 
 [[package]]
 name = "torch"
+version = "2.2.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_machine == 'x86_64' and sys_platform == 'darwin'",
+]
+dependencies = [
+    { name = "filelock", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
+    { name = "fsspec", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
+    { name = "jinja2", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
+    { name = "networkx", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
+    { name = "sympy", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
+    { name = "typing-extensions", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/78/29dcab24a344ffd9ee9549ec0ab2c7885c13df61cde4c65836ee275efaeb/torch-2.2.2-cp312-none-macosx_10_9_x86_64.whl", hash = "sha256:eb4d6e9d3663e26cd27dc3ad266b34445a16b54908e74725adb241aa56987533", size = 150797270, upload-time = "2024-03-27T21:08:29.623Z" },
+]
+
+[[package]]
+name = "torch"
 version = "2.11.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_machine != 'x86_64' or sys_platform != 'darwin'",
+]
 dependencies = [
     { name = "cuda-bindings", marker = "sys_platform == 'linux'" },
     { name = "cuda-toolkit", extra = ["cublas", "cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "sys_platform == 'linux'" },
-    { name = "filelock" },
-    { name = "fsspec" },
-    { name = "jinja2" },
-    { name = "networkx" },
+    { name = "filelock", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "fsspec", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "jinja2", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "networkx", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "nvidia-cudnn-cu13", marker = "sys_platform == 'linux'" },
     { name = "nvidia-cusparselt-cu13", marker = "sys_platform == 'linux'" },
     { name = "nvidia-nccl-cu13", marker = "sys_platform == 'linux'" },
     { name = "nvidia-nvshmem-cu13", marker = "sys_platform == 'linux'" },
-    { name = "setuptools" },
-    { name = "sympy" },
+    { name = "setuptools", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
+    { name = "sympy", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
     { name = "triton", marker = "sys_platform == 'linux'" },
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6f/8b/69e3008d78e5cee2b30183340cc425081b78afc5eff3d080daab0adda9aa/torch-2.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:4b5866312ee6e52ea625cd211dcb97d6a2cdc1131a5f15cc0d87eec948f6dd34", size = 80606338, upload-time = "2026-03-23T18:11:34.781Z" },
@@ -2532,6 +2519,52 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/9f/3e/28135a24e384493fa804216b79a6a6759a38cc4ff59118787b9fb693df93/websockets-16.0-cp314-cp314t-win_amd64.whl", hash = "sha256:b14dc141ed6d2dde437cddb216004bcac6a1df0935d79656387bd41632ba0bbd", size = 178531, upload-time = "2026-01-10T09:23:35.016Z" },
     { url = "https://files.pythonhosted.org/packages/6f/28/258ebab549c2bf3e64d2b0217b973467394a9cea8c42f70418ca2c5d0d2e/websockets-16.0-py3-none-any.whl", hash = "sha256:1637db62fad1dc833276dded54215f2c7fa46912301a24bd94d45d46a011ceec", size = 171598, upload-time = "2026-01-10T09:23:45.395Z" },
 ]
+
+[[package]]
+name = "yes-chef-mcp"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "aiosqlite" },
+    { name = "fastapi" },
+    { name = "fastmcp" },
+    { name = "httpx" },
+    { name = "mip" },
+    { name = "pydantic" },
+    { name = "scipy" },
+    { name = "sentence-transformers" },
+    { name = "sqlite-vec" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiosqlite", specifier = ">=0.20.0" },
+    { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "fastmcp", specifier = ">=2.0.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
+    { name = "mip", specifier = ">=1.15.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
+    { name = "pydantic", specifier = ">=2.10.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
+    { name = "scipy", specifier = ">=1.14.0" },
+    { name = "sentence-transformers", specifier = ">=3.3.0" },
+    { name = "sqlite-vec", specifier = ">=0.1.6" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "zipp"
