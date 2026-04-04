@@ -20,7 +20,7 @@
 /* ── Color-specific backgrounds via CSS custom property ──────────────── */
 
 .protein {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--color-protein-bg);
 }
 
 .protein .value {
@@ -28,7 +28,7 @@
 }
 
 .carbs {
-  background: rgba(245, 158, 11, 0.12);
+  background: var(--color-carbs-bg);
 }
 
 .carbs .value {
@@ -36,7 +36,7 @@
 }
 
 .fat {
-  background: rgba(239, 68, 68, 0.12);
+  background: var(--color-fat-bg);
 }
 
 .fat .value {
@@ -44,7 +44,7 @@
 }
 
 .calories {
-  background: rgba(167, 139, 250, 0.12);
+  background: var(--color-calories-bg);
 }
 
 .calories .value {

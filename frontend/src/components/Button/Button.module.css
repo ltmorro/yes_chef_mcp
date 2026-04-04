@@ -71,11 +71,3 @@
 .lg {
   padding: var(--space-3) var(--space-4);
 }
-
-/* ── Feedback override ───────────────────────────────────────────────── */
-
-.saved {
-  background: var(--color-success);
-  border-color: var(--color-success);
-  color: var(--color-text-inverse);
-}
