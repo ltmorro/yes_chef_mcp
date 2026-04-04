@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from mealmcp.core.db import configure_db_path, get_db
-from mealmcp.core.models import (
+from yes_chef_mcp.core.db import configure_db_path, get_db
+from yes_chef_mcp.core.models import (
     Ingredient,
     Nutrition,
     NutritionSource,
@@ -16,7 +16,7 @@ from mealmcp.core.models import (
     RecipeCategory,
     RecipeSource,
 )
-from mealmcp.core.recipe_store import (
+from yes_chef_mcp.core.recipe_store import (
     index_recipe_fts,
     upsert_nutrition,
     upsert_recipe,

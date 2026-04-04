@@ -1,5 +1,5 @@
 [project]
-name = "mealmcp"
+name = "yes_chef_mcp"
 version = "0.1.0"
 description = "Self-hosted meal planning MCP server with macro optimization"
 requires-python = ">=3.12"

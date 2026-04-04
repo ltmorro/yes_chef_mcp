@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from mealmcp.core.models import Ingredient, PerishabilityTier, SpoilageConfig
-from mealmcp.core.spoilage import (
+from yes_chef_mcp.core.models import Ingredient, PerishabilityTier, SpoilageConfig
+from yes_chef_mcp.core.spoilage import (
     classify_ingredient,
     estimate_package_waste,
     ingredient_overlap_bonus,

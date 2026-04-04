@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from mealmcp.core.db import get_db
-from mealmcp.core.meal_composer import compose_meal
-from mealmcp.core.models import MealComponent, Recipe
+from yes_chef_mcp.core.db import get_db
+from yes_chef_mcp.core.meal_composer import compose_meal
+from yes_chef_mcp.core.models import MealComponent, Recipe
 
 
 async def test_compose_single_recipe(sample_recipes: list[Recipe]) -> None:

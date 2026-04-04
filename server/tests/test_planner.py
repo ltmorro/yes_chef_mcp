@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from mealmcp.core.models import MealType, Recipe
-from mealmcp.core.planner import (
+from yes_chef_mcp.core.models import MealType, Recipe
+from yes_chef_mcp.core.planner import (
     add_meal_slot,
     create_meal_plan,
     delete_meal_plan,
