@@ -2,8 +2,9 @@
 
 :root {
   /* ── Fonts ─────────────────────────────────────────────────────────── */
-  --font-brand: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-brand: "Lato", sans-serif;
+  --font-heading: "Playfair Display", serif;
+  --font-mono: "Recursive", monospace;
 
   /* ── Spacing (8-point grid) ────────────────────────────────────────── */
   --space-1: 4px;
@@ -13,37 +14,61 @@
   --space-5: 32px;
   --space-6: 48px;
 
+  /* ── Colors — Palette (Mid-Century Modern) ─────────────────────────── */
+  /* Foundation (60%) */
+  --palette-cream:      #F4E9D8;
+  --palette-oat:        #F2E6D6;
+  /* Anchor (30%) */
+  --palette-charcoal:   #2D3A2E;
+  --palette-espresso:   #3C2E2A;
+  /* Accent (10%) */
+  --palette-teal:       #009B8D;
+  --palette-olive:      #5A6B2D;
+  --palette-mint:       #7FC7B6;
+  --palette-terracotta: #C85A3A;
+  --palette-mustard:    #D6A21E;
+
   /* ── Colors — Surface ──────────────────────────────────────────────── */
-  --color-bg: #0f1117;
-  --color-surface: #1a1d27;
-  --color-surface-hover: #242836;
-  --color-border: #2e3347;
-  --color-border-focus: #c2703e;
+  --color-bg:           var(--palette-cream);
+  --color-surface:      var(--palette-oat);
+  --color-surface-hover: #EDE0CB;
+  --color-border:       rgba(45, 58, 46, 0.2);
+  --color-border-focus: var(--palette-mustard);
 
   /* ── Colors — Text ─────────────────────────────────────────────────── */
-  --color-text: #e2e8f0;
-  --color-text-inverse: #0f1117;
-  --color-text-muted: #94a3b8;
-  --color-text-dim: #64748b;
+  --color-text:         var(--palette-charcoal);
+  --color-text-inverse: var(--palette-cream);
+  --color-text-muted:   var(--palette-espresso);
+  --color-text-dim:     rgba(60, 46, 42, 0.55);
 
   /* ── Colors — Brand ────────────────────────────────────────────────── */
-  --color-primary: #c2703e;
-  --color-primary-hover: #d4813b;
-  --color-primary-bg: rgba(194, 112, 62, 0.12);
+  --color-primary:      var(--palette-teal);
+  --color-primary-hover: #007A70;
+  --color-primary-bg:   rgba(0, 155, 141, 0.12);
 
   /* ── Colors — Semantic ─────────────────────────────────────────────── */
-  --color-success: #22c55e;
-  --color-success-bg: rgba(34, 197, 94, 0.12);
-  --color-warning: #f59e0b;
-  --color-warning-bg: rgba(245, 158, 11, 0.12);
-  --color-danger: #ef4444;
-  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-success:      var(--palette-olive);
+  --color-success-bg:   var(--palette-mint);
+  --color-warning:      var(--palette-espresso);
+  --color-warning-bg:   var(--palette-mustard);
+  --color-danger:       var(--palette-terracotta);
+  --color-danger-bg:    rgba(200, 90, 58, 0.12);
 
   /* ── Colors — Macro Data Viz ───────────────────────────────────────── */
-  --color-protein: #3b82f6;
-  --color-carbs: #f59e0b;
-  --color-fat: #ef4444;
-  --color-calories: #a78bfa;
+  --color-protein:      var(--palette-teal);
+  --color-protein-bg:   rgba(0, 155, 141, 0.10);
+  --color-carbs:        var(--palette-mustard);
+  --color-carbs-bg:     rgba(214, 162, 30, 0.12);
+  --color-fat:          var(--palette-terracotta);
+  --color-fat-bg:       rgba(200, 90, 58, 0.10);
+  --color-calories:     var(--palette-olive);
+  --color-calories-bg:  rgba(90, 107, 45, 0.10);
+
+  /* ── Colors — Meal-type tints (calendar chips) ───────────────────── */
+  --color-chip-breakfast: rgba(214, 162, 30, 0.07);
+  --color-chip-lunch:    rgba(0, 155, 141, 0.07);
+  --color-chip-dinner:   rgba(200, 90, 58, 0.07);
+  --color-chip-snack:    rgba(45, 58, 46, 0.05);
 
   /* ── Radius ────────────────────────────────────────────────────────── */
   --radius-none: 0px;
@@ -55,8 +80,8 @@
   --elevation-3: 0 4px 16px rgba(0, 0, 0, 0.08);
 
   /* ── Typography ────────────────────────────────────────────────────── */
-  --text-display: 700 28px/32px var(--font-brand);
-  --text-heading: 600 20px/24px var(--font-brand);
+  --text-display: 700 28px/32px var(--font-heading);
+  --text-heading: 600 20px/24px var(--font-heading);
   --text-body: 400 16px/24px var(--font-brand);
   --text-body-medium: 500 16px/24px var(--font-brand);
   --text-small: 400 12px/20px var(--font-brand);

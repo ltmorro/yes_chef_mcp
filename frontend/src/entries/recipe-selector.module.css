@@ -62,8 +62,8 @@
 .categoryMain { color: var(--color-primary); background: var(--color-primary-bg); }
 .categorySide { color: var(--color-success); background: var(--color-success-bg); }
 .categorySnack { color: var(--color-warning); background: var(--color-warning-bg); }
-.categoryDessert { color: var(--color-fat); background: rgba(239, 68, 68, 0.12); }
-.categoryBreakfast { color: var(--color-carbs); background: rgba(245, 158, 11, 0.12); }
+.categoryDessert { color: var(--color-fat); background: var(--color-fat-bg); }
+.categoryBreakfast { color: var(--color-carbs); background: var(--color-carbs-bg); }
 .categoryDefault { color: var(--color-text-muted); background: var(--color-surface-hover); }
 
 /* ── Time Badge ───────────────────────────────────────────────────────── */

@@ -8,31 +8,37 @@
 
 export const tokens = {
   color: {
-    bg: "#0f1117",
-    surface: "#1a1d27",
-    surfaceHover: "#242836",
-    border: "#2e3347",
-    borderFocus: "#c2703e",
+    bg: "#F4E9D8",
+    surface: "#F2E6D6",
+    surfaceHover: "#EDE0CB",
+    border: "rgba(45, 58, 46, 0.2)",
+    borderFocus: "#D6A21E",
 
-    text: "#e2e8f0",
-    textInverse: "#0f1117",
-    textMuted: "#94a3b8",
-    textDim: "#64748b",
+    text: "#2D3A2E",
+    textInverse: "#F4E9D8",
+    textMuted: "#3C2E2A",
+    textDim: "rgba(60, 46, 42, 0.55)",
 
-    primary: "#c2703e",
-    primaryHover: "#d4813b",
+    primary: "#009B8D",
+    primaryHover: "#007A70",
 
-    success: "#22c55e",
-    warning: "#f59e0b",
-    danger: "#ef4444",
+    success: "#5A6B2D",
+    warning: "#3C2E2A",   // text on mustard warning backgrounds
+    warningBg: "#D6A21E",
+    danger: "#C85A3A",
 
-    protein: "#3b82f6",
-    carbs: "#f59e0b",
-    fat: "#ef4444",
-    calories: "#a78bfa",
+    protein: "#009B8D",
+    proteinBg: "rgba(0, 155, 141, 0.10)",
+    carbs: "#D6A21E",
+    carbsBg: "rgba(214, 162, 30, 0.12)",
+    fat: "#C85A3A",
+    fatBg: "rgba(200, 90, 58, 0.10)",
+    calories: "#5A6B2D",
+    caloriesBg: "rgba(90, 107, 45, 0.10)",
   },
   font: {
-    brand: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    mono: "'JetBrains Mono', 'Fira Code', monospace",
+    brand: "'Lato', sans-serif",
+    heading: "'Playfair Display', serif",
+    mono: "'Recursive', monospace",
   },
 } as const;

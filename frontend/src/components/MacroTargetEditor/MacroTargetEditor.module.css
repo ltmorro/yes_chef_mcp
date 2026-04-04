@@ -1,0 +1,182 @@
+/* ── Calorie Panel (left column) ──────────────────────────────────────── */
+
+.caloriePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 200px;
+}
+
+.calorieHeader {
+  text-align: center;
+}
+
+.calorieField {
+  display: flex;
+  justify-content: center;
+}
+
+.calorieInput {
+  font: var(--text-mono-large);
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  text-align: center;
+  width: 120px;
+  padding: 0 var(--space-1);
+  outline: none;
+}
+
+.calorieInput[data-hovered] {
+  border-bottom-color: var(--color-border);
+}
+
+.calorieInput[data-focus-visible] {
+  border-bottom-color: var(--color-border-focus);
+}
+
+.calorieUnit {
+  display: block;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* ── Breakdown rows ──────────────────────────────────────────────────── */
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.breakdownRow {
+  display: grid;
+  grid-template-columns: var(--space-2) 1fr auto auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.breakdownRow[data-macro="protein"] { --macro-color: var(--color-protein); }
+.breakdownRow[data-macro="carbs"]   { --macro-color: var(--color-carbs); }
+.breakdownRow[data-macro="fat"]     { --macro-color: var(--color-fat); }
+
+.breakdownDot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--macro-color);
+}
+
+.breakdownLabel {
+  font: var(--text-small-semibold);
+  color: var(--color-text);
+}
+
+.breakdownCal {
+  font: var(--text-small);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.breakdownPct {
+  font: var(--text-badge);
+  color: var(--color-text-dim);
+  text-align: right;
+  min-width: 32px;
+}
+
+/* ── Slider Panel (right column / body) ──────────────────────────────── */
+
+.sliderPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Macro Slider (original style) ───────────────────────────────────── */
+
+.slider {
+  --slider-color: var(--color-text-dim);
+}
+
+.slider[data-macro="protein"] { --slider-color: var(--color-protein); }
+.slider[data-macro="carbs"]   { --slider-color: var(--color-carbs); }
+.slider[data-macro="fat"]     { --slider-color: var(--color-fat); }
+
+.sliderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-2);
+}
+
+.sliderLabel {
+  font: var(--text-label);
+  color: var(--color-text);
+}
+
+.sliderValues {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.sliderAmount {
+  font: 700 20px/24px var(--font-mono);
+  color: var(--slider-color);
+}
+
+.sliderUnit {
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.sliderCals {
+  font: var(--text-small);
+  color: var(--color-text-dim);
+  margin-left: var(--space-1);
+}
+
+.track {
+  position: relative;
+  width: 100%;
+  height: var(--space-2);
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.trackFill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--track-width, 0%);
+  border-radius: var(--radius-pill);
+  background: var(--slider-color);
+  transition: width 0.15s ease;
+  pointer-events: none;
+}
+
+.thumb {
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  border: 2px solid var(--slider-color);
+  top: 50%;
+  box-shadow: var(--elevation-1);
+  cursor: grab;
+  outline: none;
+}
+
+.thumb[data-dragging] {
+  cursor: grabbing;
+}
+
+.thumb[data-focus-visible] {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
