@@ -136,3 +136,10 @@ async def grocery_list_view(
     data: dict[str, object] = {"grocery_list": grocery.model_dump()}
     html = _inject_data(DIST_DIR / "grocery-list.html", data)
     return HTMLResponse(content=html)
+
+
+@router.get("/views/app", response_class=HTMLResponse)
+async def spa_view() -> HTMLResponse:
+    """Serve the main SPA frontend (no data injection needed)."""
+    html_path = DIST_DIR / "app.html"
+    return HTMLResponse(content=html_path.read_text())
