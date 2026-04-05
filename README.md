@@ -66,7 +66,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 
 ## Configuration
 
-- **Database path**: defaults to `/data/yes_chef_mcp.db`, configurable via `configure_database()` in `core/db.py`
+- **Database path**: defaults to `data/yes_chef_mcp.db`, configurable via `YES_CHEF_DB_PATH` env var or `configure_db_path()` in `core/db.py`
 - **Nutrition APIs** (optional): USDA FoodData Central and Nutritionix keys are passed to `NutritionEnricher` at construction time
 
 ## Development

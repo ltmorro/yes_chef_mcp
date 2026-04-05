@@ -23,17 +23,33 @@ from yes_chef_mcp.mcp.server import (
 # Vite build output lives in frontend/dist/ at the repo root (sibling of backend/)
 DIST_DIR = Path(__file__).parents[3] / "frontend" / "dist"
 
+# In development, we might be viewed through a proxy (like MCP Inspector)
+# on a different port. This base URL ensures assets still load from FastAPI.
+BASE_URL = "http://localhost:8000/"
+
 router = APIRouter(tags=["views"])
 
 
-def _inject_data(html_path: Path, data: dict[str, object]) -> str:
-    """Read an HTML file and inject JSON data into the <script id="view-data"> tag."""
+def prepare_html(html_path: Path, data: dict[str, object] | None = None) -> str:
+    """Read HTML, inject JSON data, and rewrite asset paths to absolute URLs."""
+    if not html_path.exists():
+        return f"<html><body><h1>View not found: {html_path.name}</h1><p>Path: {html_path}</p></body></html>"
+
     html = html_path.read_text()
-    data_json = json.dumps(data, default=str)
-    html = html.replace(
-        '<script id="view-data" type="application/json">{}</script>',
-        f'<script id="view-data" type="application/json">{data_json}</script>',
-    )
+
+    # 1. Rewrite relative asset paths to absolute FastAPI URLs
+    # This is more robust than <base> in some sandboxed environments (like MCP clients)
+    html = html.replace('src="/views/static/', f'src="{BASE_URL}views/static/')
+    html = html.replace('href="/views/static/', f'href="{BASE_URL}views/static/')
+
+    # 2. Inject data if provided
+    if data is not None:
+        data_json = json.dumps(data, default=str)
+        html = html.replace(
+            '<script id="view-data" type="application/json">{}</script>',
+            f'<script id="view-data" type="application/json">{data_json}</script>',
+        )
+
     return html
 
 
@@ -53,7 +69,7 @@ async def macro_setter_view(member_id: str | None = None) -> HTMLResponse:
             "name": active.name,
         }
 
-    html = _inject_data(DIST_DIR / "macro-setter.html", data)
+    html = prepare_html(DIST_DIR / "macro-setter.html", data)
     return HTMLResponse(content=html)
 
 
@@ -92,7 +108,7 @@ async def recipe_selector_view(
         for hit in result.hits
     ]
 
-    html = _inject_data(DIST_DIR / "recipe-selector.html", {"recipes": recipes})
+    html = prepare_html(DIST_DIR / "recipe-selector.html", {"recipes": recipes})
     return HTMLResponse(content=html)
 
 
@@ -120,7 +136,7 @@ async def weekly_calendar_view(
     if targets:
         data["targets"] = targets
 
-    html = _inject_data(DIST_DIR / "weekly-calendar.html", data)
+    html = prepare_html(DIST_DIR / "weekly-calendar.html", data)
     return HTMLResponse(content=html)
 
 
@@ -134,7 +150,7 @@ async def grocery_list_view(
     grocery = await generate_grocery_list(plan_id, merge_similar, exclude_pantry)
 
     data: dict[str, object] = {"grocery_list": grocery.model_dump()}
-    html = _inject_data(DIST_DIR / "grocery-list.html", data)
+    html = prepare_html(DIST_DIR / "grocery-list.html", data)
     return HTMLResponse(content=html)
 
 

@@ -25,8 +25,43 @@ def _rrf_score(rank: int, k: int = 60) -> float:
     return 1.0 / (k + rank)
 
 
+def _sanitize_fts_query(query: str) -> str | None:
+    """Sanitize a query for FTS5. Returns None if the result is empty."""
+    clean = query.strip()
+    if not clean:
+        return None
+    for char in "*:-":
+        clean = clean.replace(char, " ")
+    return clean.strip() or None
+
+
+def _build_hit(
+    row: dict[str, str | int | float | None],
+    macro_summary: MacroSummary,
+    search_score: float,
+    match_type: MatchType,
+) -> RecipeSearchHit:
+    tags: list[str] = json.loads(str(row.get("tags", "[]")))
+    cat_val = row.get("category")
+    return RecipeSearchHit(
+        id=str(row["id"]),
+        name=str(row["name"]),
+        category=RecipeCategory(str(cat_val)) if cat_val else None,
+        tags=tags,
+        prep_minutes=int(str(row["prep_minutes"])) if row.get("prep_minutes") is not None else None,
+        cook_minutes=int(str(row["cook_minutes"])) if row.get("cook_minutes") is not None else None,
+        macro_summary=macro_summary,
+        search_score=search_score,
+        match_type=match_type,
+    )
+
+
 async def _fts_search(query: str, limit: int) -> list[tuple[str, float]]:
     """Full-text search returning (recipe_id, rank) pairs."""
+    clean_query = _sanitize_fts_query(query)
+    if clean_query is None:
+        return []
+
     async with get_db() as db, db.execute(
         """
             SELECT recipe_id, rank
@@ -35,7 +70,7 @@ async def _fts_search(query: str, limit: int) -> list[tuple[str, float]]:
             ORDER BY rank
             LIMIT ?
             """,
-        (query, limit),
+        (clean_query, limit),
     ) as cursor:
         rows = await cursor.fetchall()
         return [(str(row["recipe_id"]), float(str(row["rank"]))) for row in rows]
@@ -77,6 +112,36 @@ async def _fetch_recipe_metadata(
     return {str(row["id"]): dict(row) for row in rows}
 
 
+async def _browse_recipe_ids(
+    category: RecipeCategory | None,
+    tags: list[str] | None,
+    limit: int,
+) -> list[str]:
+    """Fetch recipe IDs for browse (no-query) mode with optional filters."""
+    conditions: list[str] = []
+    params: list[str] = []
+
+    if category:
+        conditions.append("category = ?")
+        params.append(category.value)
+
+    if tags:
+        placeholders = ",".join("?" for _ in tags)
+        conditions.append(
+            f"EXISTS (SELECT 1 FROM json_each(tags) AS jt WHERE jt.value IN ({placeholders}))"
+        )
+        params.extend(tags)
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    async with get_db() as db, db.execute(
+        f"SELECT id FROM recipes {where} LIMIT ?",
+        [*params, limit],
+    ) as cursor:
+        rows = await cursor.fetchall()
+    return [str(row["id"]) for row in rows]
+
+
 async def hybrid_search(
     query: str,
     embedding: list[float] | None = None,
@@ -92,37 +157,43 @@ async def hybrid_search(
     1. FTS5 keyword match on recipe name + ingredient names
     2. Vector similarity via sqlite-vec (if embedding provided)
     3. Reciprocal Rank Fusion merges both ranked lists
+    4. Falls back to browse-all when no query and no embedding
 
     Keyword matches are boosted so exact matches always rank first.
     """
     fetch_limit = max_results * 4  # Over-fetch for filtering
 
+    clean_query = _sanitize_fts_query(query)
+
     # FTS5 keyword search
-    fts_results = await _fts_search(query, fetch_limit)
+    fts_results = await _fts_search(query, fetch_limit) if clean_query is not None else []
     fts_ids = {rid for rid, _ in fts_results}
 
     # Vector similarity search (if embedding provided)
     vec_results: list[tuple[str, float]] = []
-    vec_ids: set[str] = set()
     if embedding:
         vec_results = await _vector_search(embedding, fetch_limit)
-        vec_ids = {rid for rid, _ in vec_results}
 
-    # Reciprocal Rank Fusion
     scores: dict[str, float] = {}
     match_types: dict[str, MatchType] = {}
 
-    # FTS results get a 2x boost for exact keyword relevance
-    for rank, (rid, _) in enumerate(fts_results):
-        scores[rid] = scores.get(rid, 0.0) + 2.0 * _rrf_score(rank)
-        match_types[rid] = MatchType.KEYWORD
+    if not fts_results and not vec_results:
+        # No query and no embedding — return all recipes (filtered downstream)
+        for rid in await _browse_recipe_ids(category, tags, fetch_limit):
+            scores[rid] = 1.0
+            match_types[rid] = MatchType.KEYWORD
+    else:
+        # Reciprocal Rank Fusion — FTS gets a 2x boost for exact keyword relevance
+        for rank, (rid, _) in enumerate(fts_results):
+            scores[rid] = scores.get(rid, 0.0) + 2.0 * _rrf_score(rank)
+            match_types[rid] = MatchType.KEYWORD
 
-    for rank, (rid, _) in enumerate(vec_results):
-        scores[rid] = scores.get(rid, 0.0) + _rrf_score(rank)
-        if rid in fts_ids:
-            match_types[rid] = MatchType.BOTH
-        elif rid not in match_types:
-            match_types[rid] = MatchType.SEMANTIC
+        for rank, (rid, _) in enumerate(vec_results):
+            scores[rid] = scores.get(rid, 0.0) + _rrf_score(rank)
+            if rid in fts_ids:
+                match_types[rid] = MatchType.BOTH
+            elif rid not in match_types:
+                match_types[rid] = MatchType.SEMANTIC
 
     # Sort by fused score
     all_ids = sorted(scores, key=lambda rid: scores[rid], reverse=True)
@@ -138,17 +209,13 @@ async def hybrid_search(
         if meta is None:
             continue
 
-        # Category filter
         if category and meta.get("category") != category.value:
             continue
 
-        # Tag filter
-        if tags:
-            recipe_tags: list[str] = json.loads(str(meta.get("tags", "[]")))
-            if not set(tags).intersection(recipe_tags):
-                continue
+        recipe_tags: list[str] = json.loads(str(meta.get("tags", "[]")))
+        if tags and not set(tags).intersection(recipe_tags):
+            continue
 
-        # Confidence filter
         nutr = nutrition_map.get(rid)
         if min_confidence > 0.0 and (nutr is None or nutr.confidence < min_confidence):
             continue
@@ -160,24 +227,9 @@ async def hybrid_search(
             fat_g=nutr.fat_g if nutr else 0.0,
         )
 
-        recipe_tags_parsed: list[str] = json.loads(str(meta.get("tags", "[]")))
-        cat_val = meta.get("category")
-        recipe_category = RecipeCategory(str(cat_val)) if cat_val else None
-
         hits.append(
-            RecipeSearchHit(
-                id=rid,
-                name=str(meta["name"]),
-                category=recipe_category,
-                tags=recipe_tags_parsed,
-                prep_minutes=(
-                    int(str(meta["prep_minutes"])) if meta.get("prep_minutes") is not None
-                    else None
-                ),
-                cook_minutes=(
-                    int(str(meta["cook_minutes"])) if meta.get("cook_minutes") is not None
-                    else None
-                ),
+            _build_hit(
+                row={**meta, "tags": json.dumps(recipe_tags)},
                 macro_summary=macro_summary,
                 search_score=scores[rid],
                 match_type=match_types.get(rid, MatchType.KEYWORD),
@@ -207,7 +259,6 @@ async def macro_distance_search(
     offset: int = 0,
 ) -> RecipeSearchPage:
     """Find recipes closest to target macros using weighted Euclidean distance."""
-    # Build query conditions
     conditions: list[str] = []
     params: list[str | float] = []
 
@@ -267,7 +318,6 @@ async def macro_distance_search(
 
         distance = math.sqrt(dist_sq / count)
 
-        # Tolerance filter
         if distance > tolerance_pct / 100.0:
             continue
 
@@ -279,26 +329,9 @@ async def macro_distance_search(
 
     hits: list[RecipeSearchHit] = []
     for row_dict, distance in page:
-        recipe_tags_parsed: list[str] = json.loads(str(row_dict.get("tags", "[]")))
-        cat_val = row_dict.get("category")
-        recipe_category = RecipeCategory(str(cat_val)) if cat_val else None
-
         hits.append(
-            RecipeSearchHit(
-                id=str(row_dict["id"]),
-                name=str(row_dict["name"]),
-                category=recipe_category,
-                tags=recipe_tags_parsed,
-                prep_minutes=(
-                    int(str(row_dict["prep_minutes"]))
-                    if row_dict.get("prep_minutes") is not None
-                    else None
-                ),
-                cook_minutes=(
-                    int(str(row_dict["cook_minutes"]))
-                    if row_dict.get("cook_minutes") is not None
-                    else None
-                ),
+            _build_hit(
+                row=row_dict,
                 macro_summary=MacroSummary(
                     calories=float(str(row_dict["calories"])),
                     protein_g=float(str(row_dict["protein_g"])),
