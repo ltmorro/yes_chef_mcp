@@ -59,7 +59,7 @@ function RecipeCard({
 }) {
   return (
     <Card
-      onClick={() => onSelect(recipe.id)}
+      onPress={() => onSelect(recipe.id)}
       selected={isSelected}
       pretitle={
         <div className={styles.recipeMeta}>
@@ -152,7 +152,7 @@ function RecipeSelectorApp() {
   };
 
   return (
-    <div className="view-container">
+    <div>
       <div className="view-header">
         <h1>Select a Recipe</h1>
         <p>

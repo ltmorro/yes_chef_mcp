@@ -1,4 +1,6 @@
 export { Button } from "./Button";
+export { RecipeCard } from "./RecipeCard";
+export type { RecipeCardProps } from "./RecipeCard";
 export { Card } from "./Card";
 export type { CardProps } from "./Card";
 export { MacroBadge, MacroBadgeRow } from "./MacroBadge";

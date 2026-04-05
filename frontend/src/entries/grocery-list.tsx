@@ -170,7 +170,7 @@ function GroceryListApp() {
   }, [items, checkedIds]);
 
   return (
-    <div className={`view-container ${styles.narrowContainer}`}>
+    <div>
       <div className="view-header">
         <h1>Grocery List</h1>
         <p>Check off items you already have. Unchecked items will be your shopping list.</p>

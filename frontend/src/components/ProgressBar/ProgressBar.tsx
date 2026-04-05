@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import styles from "./ProgressBar.module.css";
 
 type MacroType = "protein" | "carbs" | "fat" | "calories";
@@ -37,7 +38,7 @@ export function ProgressBar({ value, max, macro, label, className }: ProgressBar
         <div
           className={styles.fill}
           /* CSS custom property for dynamic width — not an inline style override */
-          {...{ style: { "--progress-pct": `${Math.min(pct, 100)}%` } as React.CSSProperties }}
+          {...{ style: { "--progress-pct": `${Math.min(pct, 100)}%` } as CSSProperties }}
         />
       </div>
     </div>

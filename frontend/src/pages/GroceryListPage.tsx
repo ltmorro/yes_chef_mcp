@@ -219,7 +219,7 @@ export function GroceryListPage() {
 
   if (loading && items.length === 0) {
     return (
-      <div className={styles.container}>
+      <div>
         <div className={styles.loading}>Loading grocery list...</div>
       </div>
     );
@@ -227,7 +227,7 @@ export function GroceryListPage() {
 
   if (plans.length === 0) {
     return (
-      <div className={styles.container}>
+      <div>
         <div className="view-header">
           <h1>Grocery List</h1>
           <p>No meal plans found. Create a plan to generate a grocery list.</p>
@@ -237,7 +237,7 @@ export function GroceryListPage() {
   }
 
   return (
-    <div className={styles.container}>
+    <div>
       <div className="view-header">
         <h1>Grocery List</h1>
         <p>Check off items you already have. Unchecked items will be your shopping list.</p>

@@ -1,89 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { Button, Card, MacroBadgeRow } from "../components";
+import { Button, RecipeCard } from "../components";
 import type { RecipeHit } from "../types.ts";
 import { fetchRecipes } from "../api.ts";
 import styles from "./RecipeSelectorPage.module.css";
-
-/* ── Category Pill ────────────────────────────────────────────────────── */
-
-const CATEGORY_CLASS: Record<string, string> = {
-  main: styles.categoryMain ?? "",
-  side: styles.categorySide ?? "",
-  snack: styles.categorySnack ?? "",
-  dessert: styles.categoryDessert ?? "",
-  breakfast: styles.categoryBreakfast ?? "",
-};
-
-function CategoryPill({ category }: { category: string | null }) {
-  if (!category) return null;
-  const colorClass = CATEGORY_CLASS[category] ?? styles.categoryDefault;
-
-  return (
-    <span className={`${styles.categoryPill} ${colorClass}`}>
-      {category}
-    </span>
-  );
-}
-
-/* ── Time Badge ───────────────────────────────────────────────────────── */
-
-function TimeBadge({
-  prepMinutes,
-  cookMinutes,
-}: {
-  prepMinutes: number | null;
-  cookMinutes: number | null;
-}) {
-  const total = (prepMinutes ?? 0) + (cookMinutes ?? 0);
-  if (total === 0) return null;
-
-  return (
-    <span className={styles.timeBadge}>
-      {"\u23F1"} {total} min
-    </span>
-  );
-}
-
-/* ── Recipe Card ──────────────────────────────────────────────────────── */
-
-function RecipeCard({
-  recipe,
-  isSelected,
-  onSelect,
-}: {
-  recipe: RecipeHit;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <Card
-      onClick={() => onSelect(recipe.id)}
-      selected={isSelected}
-      pretitle={
-        <div className={styles.recipeMeta}>
-          <CategoryPill category={recipe.category} />
-          <TimeBadge prepMinutes={recipe.prep_minutes} cookMinutes={recipe.cook_minutes} />
-        </div>
-      }
-      title={<span className={styles.recipeName}>{recipe.name}</span>}
-      trailingMedia={isSelected ? <div className={styles.checkmark}>{"\u2713"}</div> : undefined}
-      body={
-        <>
-          {recipe.tags.length > 0 && (
-            <div className={styles.tags}>
-              {recipe.tags.slice(0, 4).map((tag) => (
-                <span key={tag} className={styles.tag}>{tag}</span>
-              ))}
-            </div>
-          )}
-          {recipe.macro_summary && (
-            <MacroBadgeRow macros={recipe.macro_summary} />
-          )}
-        </>
-      }
-    />
-  );
-}
 
 /* ── Filter Bar ───────────────────────────────────────────────────────── */
 
@@ -146,14 +65,14 @@ export function RecipeSelectorPage() {
 
   if (loading) {
     return (
-      <div className={styles.container}>
+      <div>
         <div className={styles.loading}>Loading recipes...</div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
+    <div>
       <div className="view-header">
         <h1>Select a Recipe</h1>
         <p>
@@ -169,7 +88,7 @@ export function RecipeSelectorPage() {
         {filtered.map((recipe) => (
           <RecipeCard
             key={recipe.id}
-            recipe={recipe}
+            {...recipe}
             isSelected={selectedId === recipe.id}
             onSelect={setSelectedId}
           />

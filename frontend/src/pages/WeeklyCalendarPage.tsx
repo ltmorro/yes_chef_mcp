@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
-import { Button, Card, ProgressBar } from "../components";
-import type { DaySummary, MacroSummary, MealComponent, PlanSummary } from "../types.ts";
-import { fetchPlans, fetchPlanSummary, fetchMacroTargets } from "../api.ts";
+import { Button, Card, RecipeCard, ProgressBar } from "../components";
+import type { DaySummary, MacroSummary, PlanSummary, RecipeHit } from "../types.ts";
+import { fetchPlans, fetchPlanSummary, fetchMacroTargets, fetchRecipesByIds } from "../api.ts";
 import styles from "./WeeklyCalendarPage.module.css";
 
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -91,47 +91,18 @@ function MacroVarianceBar({
   );
 }
 
-/* ── Meal Chip ────────────────────────────────────────────────────────── */
+/* ── Day Row ──────────────────────────────────────────────────────────── */
 
-const CHIP_CLASS: Record<string, string> = {
-  breakfast: styles.mealChipBreakfast ?? "",
-  lunch: styles.mealChipLunch ?? "",
-  dinner: styles.mealChipDinner ?? "",
-  snack: styles.mealChipSnack ?? "",
-};
-
-const TYPE_CLASS: Record<string, string> = {
-  breakfast: styles.mealTypeBreakfast ?? "",
-  lunch: styles.mealTypeLunch ?? "",
-  dinner: styles.mealTypeDinner ?? "",
-  snack: styles.mealTypeSnack ?? "",
-};
-
-function MealChip({ mealType, recipes }: { mealType: string; recipes: MealComponent[] }) {
-  return (
-    <div className={`${styles.mealChip} ${CHIP_CLASS[mealType] ?? ""}`}>
-      <div className={`${styles.mealType} ${TYPE_CLASS[mealType] ?? ""}`}>
-        {mealType}
-      </div>
-      {recipes.map((r, i) => (
-        <div key={i} className={styles.mealRecipe}>
-          {r.recipe_name ?? r.recipe_id}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Day Column ───────────────────────────────────────────────────────── */
-
-function DayColumn({
+function DayRow({
   dayOffset,
   dayData,
   targets,
+  recipeIndex,
 }: {
   dayOffset: number;
   dayData: DaySummary;
   targets: MacroSummary | null;
+  recipeIndex: Map<string, RecipeHit>;
 }) {
   const dayName = DAY_SHORT[dayOffset % 7] ?? `Day ${dayOffset + 1}`;
   const meals = dayData.meals ?? {};
@@ -139,21 +110,36 @@ function DayColumn({
   const firstMemberMacros = Object.values(macros)[0];
   const isEmpty = Object.keys(meals).length === 0;
 
+  const recipeItems = MEAL_ORDER.flatMap((mt) =>
+    (meals[mt] ?? []).map((r) => ({ mealType: mt, component: r })),
+  );
+
   return (
     <Card
       pretitle={dayName}
-      body={
-        <div className={styles.dayContent}>
-          <div className={styles.dayMeals}>
+      className={!isEmpty ? styles.dayRowFilled : undefined}
+      title={
+        <div className={styles.dayRowBody}>
+          <div className={styles.dayRecipes}>
             {isEmpty ? (
               <div className={styles.dayEmpty}>No meals</div>
             ) : (
-              MEAL_ORDER.filter((mt) => meals[mt] && meals[mt].length > 0).map((mt) => (
-                <MealChip key={mt} mealType={mt} recipes={meals[mt]!} />
-              ))
+              recipeItems.map((item, i) => {
+                const hit = recipeIndex.get(item.component.recipe_id);
+                if (hit) {
+                  return <RecipeCard key={i} {...hit} />;
+                }
+                // Fallback for recipes not yet in the index
+                return (
+                  <Card
+                    key={i}
+                    pretitle={item.mealType}
+                    title={item.component.recipe_name ?? item.component.recipe_id}
+                  />
+                );
+              })
             )}
           </div>
-
           {targets && firstMemberMacros?.calories != null && (
             <div className={styles.dayVariance}>
               <MacroVarianceBar actual={firstMemberMacros.calories} target={targets.calories} nutrient="Cal" macro="calories" />
@@ -164,7 +150,6 @@ function DayColumn({
           )}
         </div>
       }
-      className={!isEmpty ? styles.dayColumnFilled : undefined}
     />
   );
 }
@@ -183,8 +168,8 @@ function WeeklySummary({
 
   return (
     <Card
-      pretitle="Weekly Average"
-      body={
+      pretitle="Macro Totals"
+      title={
         <div className={styles.summaryGrid}>
           <ProgressBar value={avg.calories} max={targets?.calories ?? avg.calories} macro="calories" label="Calories" />
           <ProgressBar value={avg.protein_g} max={targets?.protein_g ?? avg.protein_g} macro="protein" label="Protein" />
@@ -208,6 +193,7 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [planSummary, setPlanSummary] = useState<PlanSummary | null>(null);
   const [targets, setTargets] = useState<MacroSummary | null>(null);
+  const [recipeIndex, setRecipeIndex] = useState<Map<string, RecipeHit>>(new Map());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -231,6 +217,22 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
       .catch(() => setPlanSummary(null))
       .finally(() => setLoading(false));
   }, [selectedPlanId, memberId]);
+
+  useEffect(() => {
+    if (!planSummary) return;
+    const ids = [
+      ...new Set(
+        planSummary.daily_summaries.flatMap((day) =>
+          Object.values(day.meals).flatMap((components) =>
+            components.map((c) => c.recipe_id),
+          ),
+        ),
+      ),
+    ];
+    fetchRecipesByIds(ids)
+      .then((hits) => setRecipeIndex(new Map(hits.map((r) => [r.id, r]))))
+      .catch(() => { /* non-critical, cards fall back to name-only */ });
+  }, [planSummary]);
 
   useEffect(() => {
     if (!memberId) return;
@@ -262,7 +264,7 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
 
   if (loading && !planSummary) {
     return (
-      <div className={styles.container}>
+      <div>
         <div className={styles.loading}>Loading meal plans...</div>
       </div>
     );
@@ -270,7 +272,7 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
 
   if (plans.length === 0) {
     return (
-      <div className={styles.container}>
+      <div>
         <div className="view-header">
           <h1>Weekly Calendar</h1>
           <p>No meal plans found. Create one to get started.</p>
@@ -279,12 +281,8 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
     );
   }
 
-  const gridStyle = planSummary
-    ? { gridTemplateColumns: `repeat(${Math.min(planSummary.days, 7)}, 1fr)` } as React.CSSProperties
-    : undefined;
-
   return (
-    <div className={styles.container}>
+    <div>
       <div className="view-header">
         <h1>{planSummary?.plan_name ?? "Weekly Calendar"}</h1>
         <p>{planSummary ? `${planSummary.days}-day plan overview` : "Select a plan"}</p>
@@ -296,9 +294,9 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
         <>
           <WeeklySummary weeklyAverages={planSummary.weekly_averages} targets={targets} />
 
-          <div className={styles.dayGrid} {...(gridStyle ? { style: gridStyle } : {})}>
+          <div className={styles.dayList}>
             {days.map((day) => (
-              <DayColumn key={day.day_offset} dayOffset={day.day_offset} dayData={day} targets={targets} />
+              <DayRow key={day.day_offset} dayOffset={day.day_offset} dayData={day} targets={targets} recipeIndex={recipeIndex} />
             ))}
           </div>
         </>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Slider, SliderTrack, SliderThumb, SliderOutput, Label, NumberField, Input } from "react-aria-components";
 import styles from "./MacroTargetEditor.module.css";
 
@@ -97,7 +98,7 @@ function MacroSlider({ config, onMacroChange }: {
           <>
             <div
               className={styles.trackFill}
-              {...{ style: { "--track-width": `${state.getThumbPercent(0) * 100}%` } as React.CSSProperties }}
+              {...{ style: { "--track-width": `${state.getThumbPercent(0) * 100}%` } as CSSProperties }}
             />
             <SliderThumb className={styles.thumb} />
           </>

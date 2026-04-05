@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
+import { Button as AriaButton } from "react-aria-components";
 import styles from "./Card.module.css";
 
 interface CardProps {
   children?: ReactNode;
   className?: string;
-  onClick?: () => void;
+  onPress?: () => void;
   selected?: boolean;
   leadingMedia?: ReactNode;
   pretitle?: ReactNode;
@@ -20,7 +21,7 @@ export type { CardProps };
 export function Card({
   children,
   className,
-  onClick,
+  onPress,
   selected,
   leadingMedia,
   pretitle,
@@ -36,23 +37,15 @@ export function Card({
     styles.card,
     hasSlots ? styles.slotted : "",
     leadingMedia ? styles.hasLeading : "",
-    onClick ? styles.interactive : "",
+    onPress ? styles.interactive : "",
     selected ? styles.selected : "",
     className,
   ]
     .filter(Boolean)
     .join(" ");
 
-  if (!hasSlots) {
-    return (
-      <div className={classes} onClick={onClick}>
-        {children}
-      </div>
-    );
-  }
-
-  return (
-    <div className={classes} onClick={onClick}>
+  const content = hasSlots ? (
+    <>
       {leadingMedia && <div className={styles.leadingMedia}>{leadingMedia}</div>}
       <div className={styles.content}>
         {(pretitle || title || subtitle || trailingMedia) && (
@@ -68,6 +61,16 @@ export function Card({
         {body && <div className={styles.body}>{body}</div>}
         {footer && <div className={styles.footer}>{footer}</div>}
       </div>
-    </div>
-  );
+    </>
+  ) : children;
+
+  if (onPress) {
+    return (
+      <AriaButton className={classes} onPress={onPress}>
+        {content}
+      </AriaButton>
+    );
+  }
+
+  return <div className={classes}>{content}</div>;
 }

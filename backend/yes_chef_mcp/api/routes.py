@@ -40,7 +40,7 @@ from yes_chef_mcp.core.schemas import (
     RecipeSearchPageSchema,
     SetMacroTargetRequest,
 )
-from yes_chef_mcp.core.search import hybrid_search
+from yes_chef_mcp.core.search import browse_recipes, hybrid_search, search_by_ids
 from yes_chef_mcp.mcp.server import (
     add_to_meal_plan,
     generate_grocery_list,
@@ -61,23 +61,40 @@ router = APIRouter()
 @router.get("/recipes", response_model=RecipeSearchPageSchema)
 async def search_recipes(
     q: str = "",
+    ids: str | None = None,
     category: str | None = None,
     tags: str | None = None,
     max_results: int = 20,
     cursor: str | None = None,
 ) -> RecipeSearchPageSchema:
-    """Search recipes by query string."""
+    """Search or list recipes.
+
+    - ``ids``: comma-separated recipe IDs — returns those exact recipes, bypassing search.
+    - ``q``: free-text query — runs hybrid FTS + vector search.
+    - Neither: returns a paginated list ordered by name, bypassing search machinery.
+    """
     cat = RecipeCategory(category) if category else None
     tag_list = tags.split(",") if tags else None
     offset = int(cursor) if cursor else 0
 
-    result = await hybrid_search(
-        query=q,
-        category=cat,
-        tags=tag_list,
-        max_results=max_results,
-        offset=offset,
-    )
+    if ids is not None:
+        id_list = [i.strip() for i in ids.split(",") if i.strip()]
+        result = await search_by_ids(id_list)
+    elif q:
+        result = await hybrid_search(
+            query=q,
+            category=cat,
+            tags=tag_list,
+            max_results=max_results,
+            offset=offset,
+        )
+    else:
+        result = await browse_recipes(
+            category=cat,
+            tags=tag_list,
+            limit=max_results,
+            offset=offset,
+        )
 
     return RecipeSearchPageSchema.model_validate(result)
 

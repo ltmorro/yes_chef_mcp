@@ -86,7 +86,7 @@ export function MacroSetterPage({ memberId }: MacroSetterPageProps) {
 
   if (loading) {
     return (
-      <div className={styles.container}>
+      <div>
         <div className={styles.loading}>Loading targets...</div>
       </div>
     );
@@ -95,7 +95,7 @@ export function MacroSetterPage({ memberId }: MacroSetterPageProps) {
   const macros = buildMacros(protein, carbs, fat);
 
   return (
-    <div className={styles.container}>
+    <div>
       <div className="view-header">
         <h1>Macro Targets</h1>
         <p>Adjust your daily macro goals and see calorie impact in real time.</p>

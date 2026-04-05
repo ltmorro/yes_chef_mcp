@@ -201,7 +201,7 @@ function WeeklyCalendarApp() {
   } as React.CSSProperties;
 
   return (
-    <div className={`view-container ${styles.wideContainer}`}>
+    <div>
       <div className="view-header">
         <h1>{planSummary.plan_name}</h1>
         <p>{planSummary.days}-day plan overview</p>

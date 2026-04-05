@@ -142,6 +142,60 @@ async def _browse_recipe_ids(
     return [str(row["id"]) for row in rows]
 
 
+async def search_by_ids(ids: list[str]) -> RecipeSearchPage:
+    """Fetch recipes by exact IDs, bypassing all search machinery."""
+    metadata = await _fetch_recipe_metadata(ids)
+    nutrition_map = await get_nutrition_batch(ids)
+
+    hits: list[RecipeSearchHit] = []
+    for rid in ids:
+        meta = metadata.get(rid)
+        if meta is None:
+            continue
+        nutr = nutrition_map.get(rid)
+        macro_summary = MacroSummary(
+            calories=nutr.calories if nutr else 0.0,
+            protein_g=nutr.protein_g if nutr else 0.0,
+            carbs_g=nutr.carbs_g if nutr else 0.0,
+            fat_g=nutr.fat_g if nutr else 0.0,
+        )
+        hits.append(_build_hit(row=meta, macro_summary=macro_summary, search_score=1.0, match_type=MatchType.KEYWORD))
+
+    return RecipeSearchPage(hits=hits, next_cursor=None, total_count=len(hits))
+
+
+async def browse_recipes(
+    category: RecipeCategory | None = None,
+    tags: list[str] | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> RecipeSearchPage:
+    """List recipes without search, bypassing FTS and vector machinery."""
+    all_ids = await _browse_recipe_ids(category, tags, limit + offset)
+    page_ids = all_ids[offset : offset + limit]
+
+    metadata = await _fetch_recipe_metadata(page_ids)
+    nutrition_map = await get_nutrition_batch(page_ids)
+
+    hits: list[RecipeSearchHit] = []
+    for rid in page_ids:
+        meta = metadata.get(rid)
+        if meta is None:
+            continue
+        nutr = nutrition_map.get(rid)
+        macro_summary = MacroSummary(
+            calories=nutr.calories if nutr else 0.0,
+            protein_g=nutr.protein_g if nutr else 0.0,
+            carbs_g=nutr.carbs_g if nutr else 0.0,
+            fat_g=nutr.fat_g if nutr else 0.0,
+        )
+        hits.append(_build_hit(row=meta, macro_summary=macro_summary, search_score=1.0, match_type=MatchType.KEYWORD))
+
+    total = len(all_ids)
+    next_cursor = str(offset + limit) if offset + limit < total else None
+    return RecipeSearchPage(hits=hits, next_cursor=next_cursor, total_count=total)
+
+
 async def hybrid_search(
     query: str,
     embedding: list[float] | None = None,

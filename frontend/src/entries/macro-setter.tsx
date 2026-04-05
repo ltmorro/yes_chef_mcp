@@ -85,7 +85,7 @@ function MacroSetterApp() {
   const macros = buildMacros(protein, carbs, fat);
 
   return (
-    <div className="view-container">
+    <div>
       <Card
         pretitle="Daily Target"
         title="Macro Targets"

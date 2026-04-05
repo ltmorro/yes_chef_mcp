@@ -1,10 +1,5 @@
 /* ── GroceryListPage ─────────────────────────────────────────────────── */
 
-.container {
-  max-width: 700px;
-  margin: 0 auto;
-}
-
 .loading {
   padding: var(--space-6);
   text-align: center;

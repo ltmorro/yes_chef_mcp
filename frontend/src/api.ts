@@ -50,6 +50,13 @@ export async function fetchRecipes(
   return result.hits;
 }
 
+export async function fetchRecipesByIds(ids: string[]): Promise<RecipeHit[]> {
+  if (ids.length === 0) return [];
+  const params = new URLSearchParams({ ids: ids.join(",") });
+  const result = await apiFetch<RecipeSearchResponse>(`/recipes?${params}`);
+  return result.hits;
+}
+
 /* ── Macro Targets ────────��──────────────────────────────────────────── */
 
 export async function fetchMacroTargets(
