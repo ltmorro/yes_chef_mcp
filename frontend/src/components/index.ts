@@ -5,3 +5,7 @@ export { MacroBadge, MacroBadgeRow } from "./MacroBadge";
 export { CaloriePanel, SliderPanel } from "./MacroTargetEditor";
 export type { MacroKey, MacroConfig, MacroTargetEditorProps } from "./MacroTargetEditor";
 export { ProgressBar } from "./ProgressBar";
+export { AppShell } from "./AppShell";
+export { Sidebar } from "./Sidebar";
+export type { Page } from "./Sidebar";
+export { TopBar } from "./TopBar";

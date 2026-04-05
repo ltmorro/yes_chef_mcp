@@ -153,3 +153,9 @@ async def grocery_list_view(
     html = prepare_html(DIST_DIR / "grocery-list.html", data)
     return HTMLResponse(content=html)
 
+
+@router.get("/views/app", response_class=HTMLResponse)
+async def spa_view() -> HTMLResponse:
+    """Serve the main SPA frontend (no data injection needed)."""
+    html_path = DIST_DIR / "app.html"
+    return HTMLResponse(content=html_path.read_text())

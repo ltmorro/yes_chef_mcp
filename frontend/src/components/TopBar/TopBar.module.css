@@ -1,0 +1,101 @@
+/* ── TopBar ───────────────────────────────────────────────────────────── */
+
+.topBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--elevation-1);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-3);
+}
+
+/* ── Left Section ─────────────────────────────────────────────────────── */
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: var(--radius-none);
+  transition: background 0.15s ease;
+}
+
+.hamburger[data-hovered] {
+  background: var(--color-surface-hover);
+}
+
+.hamburger[data-pressed] {
+  background: var(--color-surface-hover);
+}
+
+.hamburger[data-focus-visible] {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* ── Brand ────────────────────────────────────────────────────────────── */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.brandName {
+  font: var(--text-heading);
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+/* ── Right Section ────────────────────────────────────────────────────── */
+
+.right {
+  display: flex;
+  align-items: center;
+}
+
+.signIn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font: var(--text-label);
+  cursor: pointer;
+  border-radius: var(--radius-none);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.signIn[data-hovered] {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.signIn[data-pressed] {
+  background: var(--color-surface-hover);
+}
+
+.signIn[data-focus-visible] {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}

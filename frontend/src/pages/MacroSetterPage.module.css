@@ -1,0 +1,21 @@
+/* ── MacroSetterPage ─────────────────────────────────────────────────── */
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.loading {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+  font: var(--text-body);
+}
+
+/* ── Save feedback ───────────────────────────────────────────────────── */
+
+.saved {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-text-inverse);
+}
