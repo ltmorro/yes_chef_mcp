@@ -61,32 +61,29 @@ function RecipeCard({
     <Card
       onClick={() => onSelect(recipe.id)}
       selected={isSelected}
-    >
-      <div className={styles.recipeCardHeader}>
-        <div>
-          <h3 className={styles.recipeName}>{recipe.name}</h3>
-          <div className={styles.recipeMeta}>
-            <CategoryPill category={recipe.category} />
-            <TimeBadge prepMinutes={recipe.prep_minutes} cookMinutes={recipe.cook_minutes} />
-          </div>
+      pretitle={
+        <div className={styles.recipeMeta}>
+          <CategoryPill category={recipe.category} />
+          <TimeBadge prepMinutes={recipe.prep_minutes} cookMinutes={recipe.cook_minutes} />
         </div>
-        {isSelected && (
-          <div className={styles.checkmark}>{"\u2713"}</div>
-        )}
-      </div>
-
-      {recipe.tags.length > 0 && (
-        <div className={styles.tags}>
-          {recipe.tags.slice(0, 4).map((tag) => (
-            <span key={tag} className={styles.tag}>{tag}</span>
-          ))}
-        </div>
-      )}
-
-      {recipe.macro_summary && (
-        <MacroBadgeRow macros={recipe.macro_summary} className={styles.macros} />
-      )}
-    </Card>
+      }
+      title={<span className={styles.recipeName}>{recipe.name}</span>}
+      trailingMedia={isSelected ? <div className={styles.checkmark}>{"\u2713"}</div> : undefined}
+      body={
+        <>
+          {recipe.tags.length > 0 && (
+            <div className={styles.tags}>
+              {recipe.tags.slice(0, 4).map((tag) => (
+                <span key={tag} className={styles.tag}>{tag}</span>
+              ))}
+            </div>
+          )}
+          {recipe.macro_summary && (
+            <MacroBadgeRow macros={recipe.macro_summary} />
+          )}
+        </>
+      }
+    />
   );
 }
 
