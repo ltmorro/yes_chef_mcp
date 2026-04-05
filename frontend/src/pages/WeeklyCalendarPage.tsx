@@ -139,34 +139,33 @@ function DayColumn({
   const firstMemberMacros = Object.values(macros)[0];
   const isEmpty = Object.keys(meals).length === 0;
 
-  const columnClasses = [
-    styles.dayColumn,
-    !isEmpty ? styles.dayColumnFilled : "",
-  ].filter(Boolean).join(" ");
-
   return (
-    <div className={columnClasses}>
-      <div className={styles.dayName}>{dayName}</div>
+    <Card
+      pretitle={dayName}
+      body={
+        <div className={styles.dayContent}>
+          <div className={styles.dayMeals}>
+            {isEmpty ? (
+              <div className={styles.dayEmpty}>No meals</div>
+            ) : (
+              MEAL_ORDER.filter((mt) => meals[mt] && meals[mt].length > 0).map((mt) => (
+                <MealChip key={mt} mealType={mt} recipes={meals[mt]!} />
+              ))
+            )}
+          </div>
 
-      <div className={styles.dayMeals}>
-        {isEmpty ? (
-          <div className={styles.dayEmpty}>No meals</div>
-        ) : (
-          MEAL_ORDER.filter((mt) => meals[mt] && meals[mt].length > 0).map((mt) => (
-            <MealChip key={mt} mealType={mt} recipes={meals[mt]!} />
-          ))
-        )}
-      </div>
-
-      {targets && firstMemberMacros?.calories != null && (
-        <div>
-          <MacroVarianceBar actual={firstMemberMacros.calories} target={targets.calories} nutrient="Cal" macro="calories" />
-          <MacroVarianceBar actual={firstMemberMacros.protein_g} target={targets.protein_g} nutrient="Protein" macro="protein" />
-          <MacroVarianceBar actual={firstMemberMacros.carbs_g} target={targets.carbs_g} nutrient="Carbs" macro="carbs" />
-          <MacroVarianceBar actual={firstMemberMacros.fat_g} target={targets.fat_g} nutrient="Fat" macro="fat" />
+          {targets && firstMemberMacros?.calories != null && (
+            <div className={styles.dayVariance}>
+              <MacroVarianceBar actual={firstMemberMacros.calories} target={targets.calories} nutrient="Cal" macro="calories" />
+              <MacroVarianceBar actual={firstMemberMacros.protein_g} target={targets.protein_g} nutrient="Protein" macro="protein" />
+              <MacroVarianceBar actual={firstMemberMacros.carbs_g} target={targets.carbs_g} nutrient="Carbs" macro="carbs" />
+              <MacroVarianceBar actual={firstMemberMacros.fat_g} target={targets.fat_g} nutrient="Fat" macro="fat" />
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      }
+      className={!isEmpty ? styles.dayColumnFilled : undefined}
+    />
   );
 }
 
@@ -183,15 +182,18 @@ function WeeklySummary({
   if (!avg) return null;
 
   return (
-    <Card className={styles.summaryCard}>
-      <div className={styles.summaryLabel}>Weekly Average</div>
-      <div className={styles.summaryGrid}>
-        <ProgressBar value={avg.calories} max={targets?.calories ?? avg.calories} macro="calories" label="Calories" />
-        <ProgressBar value={avg.protein_g} max={targets?.protein_g ?? avg.protein_g} macro="protein" label="Protein" />
-        <ProgressBar value={avg.carbs_g} max={targets?.carbs_g ?? avg.carbs_g} macro="carbs" label="Carbs" />
-        <ProgressBar value={avg.fat_g} max={targets?.fat_g ?? avg.fat_g} macro="fat" label="Fat" />
-      </div>
-    </Card>
+    <Card
+      pretitle="Weekly Average"
+      body={
+        <div className={styles.summaryGrid}>
+          <ProgressBar value={avg.calories} max={targets?.calories ?? avg.calories} macro="calories" label="Calories" />
+          <ProgressBar value={avg.protein_g} max={targets?.protein_g ?? avg.protein_g} macro="protein" label="Protein" />
+          <ProgressBar value={avg.carbs_g} max={targets?.carbs_g ?? avg.carbs_g} macro="carbs" label="Carbs" />
+          <ProgressBar value={avg.fat_g} max={targets?.fat_g ?? avg.fat_g} macro="fat" label="Fat" />
+        </div>
+      }
+      className={styles.summaryCard}
+    />
   );
 }
 

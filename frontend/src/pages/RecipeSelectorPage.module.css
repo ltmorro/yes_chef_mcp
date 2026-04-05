@@ -29,19 +29,11 @@
   gap: var(--space-3);
 }
 
-/* ── Recipe Card ──────────────────────────────────────────────────────── */
-
-.recipeCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--space-2);
-}
+/* ── Recipe Card content ─────────────────────────────────────────────── */
 
 .recipeName {
   font: var(--text-label);
   color: var(--color-text);
-  margin-bottom: var(--space-1);
 }
 
 .recipeMeta {
@@ -51,8 +43,8 @@
 }
 
 .checkmark {
-  width: 24px;
-  height: 24px;
+  width: var(--space-4);
+  height: var(--space-4);
   border-radius: var(--radius-pill);
   background: var(--color-primary);
   display: flex;
@@ -102,12 +94,6 @@
   background: var(--color-surface-hover);
   padding: var(--space-1) var(--space-1);
   border-radius: var(--radius-pill);
-}
-
-/* ── Macros row ───────────────────────────────────────────────────────── */
-
-.macros {
-  margin-top: var(--space-2);
 }
 
 /* ── Empty State ──────────────────────────────────────────────────────── */
