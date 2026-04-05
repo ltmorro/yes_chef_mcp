@@ -766,9 +766,9 @@ async def show_grocery_checklist(
 )
 def macro_setter_resource() -> str:
     """Interactive macro target editor UI."""
-    from yes_chef_mcp.views import DIST_DIR
+    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
 
-    return (DIST_DIR / "macro-setter.html").read_text()
+    return prepare_html(DIST_DIR / "macro-setter.html")
 
 
 @mcp.resource(
@@ -777,9 +777,9 @@ def macro_setter_resource() -> str:
 )
 def recipe_selector_resource() -> str:
     """Recipe browser with card grid UI."""
-    from yes_chef_mcp.views import DIST_DIR
+    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
 
-    return (DIST_DIR / "recipe-selector.html").read_text()
+    return prepare_html(DIST_DIR / "recipe-selector.html")
 
 
 @mcp.resource(
@@ -788,9 +788,9 @@ def recipe_selector_resource() -> str:
 )
 def weekly_calendar_resource() -> str:
     """Weekly meal plan calendar UI."""
-    from yes_chef_mcp.views import DIST_DIR
+    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
 
-    return (DIST_DIR / "weekly-calendar.html").read_text()
+    return prepare_html(DIST_DIR / "weekly-calendar.html")
 
 
 @mcp.resource(
@@ -799,6 +799,7 @@ def weekly_calendar_resource() -> str:
 )
 def grocery_list_resource() -> str:
     """Grocery checklist UI."""
-    from yes_chef_mcp.views import DIST_DIR
+    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
 
-    return (DIST_DIR / "grocery-list.html").read_text()
+    return prepare_html(DIST_DIR / "grocery-list.html")
+
