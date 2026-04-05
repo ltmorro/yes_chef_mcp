@@ -10,10 +10,12 @@ dependencies = [
     "pydantic>=2.10.0",
     "aiosqlite>=0.20.0",
     "sqlite-vec>=0.1.6",
-    "sentence-transformers>=3.3.0",
+    "sentence-transformers<4.0.0",
+    "transformers<4.40.0",
     "mip>=1.15.0",
     "scipy>=1.14.0",
     "httpx>=0.28.0",
+    "numpy<2.0.0",
 ]
 
 [project.optional-dependencies]
