@@ -34,13 +34,14 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: var(--space-3) var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
 }
 
 .headerText {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  width: 100%;
 }
 
 .pretitle {
@@ -63,6 +64,7 @@
 .trailingMedia {
   flex-shrink: 0;
   margin-left: var(--space-3);
+  align-self: center;
 }
 
 .body {

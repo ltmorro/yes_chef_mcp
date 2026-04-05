@@ -84,22 +84,23 @@ function SummaryBar({ total, checked }: { total: number; checked: number }) {
   const pct = total > 0 ? (checked / total) * 100 : 0;
 
   return (
-    <Card className={styles.summaryCard}>
-      <div className={styles.summaryTrackWrapper}>
-        <div className={styles.summaryTrack}>
-          <div
-            className={`${styles.summaryFill} ${pct === 100 ? styles.summaryFillComplete : styles.summaryFillActive}`}
-            {...{ style: { "--progress-pct": `${pct}%` } as React.CSSProperties }}
-          />
+    <Card
+      className={styles.summaryCard}
+      pretitle="Shopping Status"
+      title={<div className={styles.summaryTrack}>
+            <div
+              className={`${styles.summaryFill} ${pct === 100 ? styles.summaryFillComplete : styles.summaryFillActive}`}
+              {...{ style: { "--progress-pct": `${pct}%` } as React.CSSProperties }}
+            />
+          </div>}
+      subtitle={<div> {checked} of {total} items checked off
+          </div>}
+      trailingMedia={
+        <div className={`${styles.summaryCount} ${remaining === 0 ? styles.summaryCountDone : ""}`}>
+          {remaining === 0 ? "\u2713" : remaining}
         </div>
-        <div className={styles.summarySubtext}>
-          {checked} of {total} items checked off
-        </div>
-      </div>
-      <div className={`${styles.summaryCount} ${remaining === 0 ? styles.summaryCountDone : ""}`}>
-        {remaining === 0 ? "\u2713" : remaining}
-      </div>
-    </Card>
+      }
+    />
   );
 }
 
