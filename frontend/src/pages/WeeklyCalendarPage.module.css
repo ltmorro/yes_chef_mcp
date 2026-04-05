@@ -1,0 +1,147 @@
+/* ── WeeklyCalendarPage ──────────────────────────────────────────────── */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.loading {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+  font: var(--text-body);
+}
+
+/* ── Plan Selector ───────────────────────────────────────────────────── */
+
+.planSelector {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+/* ── Day Grid ─────────────────────────────────────────────────────────── */
+
+.dayGrid {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+/* ── Day Column ───────────────────────────────────────────────────────── */
+
+.dayColumn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-none);
+  padding: var(--space-3);
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dayColumnFilled {
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.dayName {
+  font: var(--text-label);
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dayMeals {
+  flex: 1;
+  margin-bottom: var(--space-2);
+}
+
+.dayEmpty {
+  color: var(--color-text-dim);
+  font: var(--text-small);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+/* ── Meal Chip ────────────────────────────────────────────────────────── */
+
+.mealChip {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-none);
+  margin-bottom: var(--space-1);
+}
+
+.mealChipBreakfast { background: var(--color-chip-breakfast); border-left: 3px solid var(--color-carbs); }
+.mealChipLunch { background: var(--color-chip-lunch); border-left: 3px solid var(--color-protein); }
+.mealChipDinner { background: var(--color-chip-dinner); border-left: 3px solid var(--color-primary); }
+.mealChipSnack { background: var(--color-chip-snack); border-left: 3px solid var(--color-text-muted); }
+
+.mealType {
+  font: var(--text-badge);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.mealTypeBreakfast { color: var(--color-carbs); }
+.mealTypeLunch { color: var(--color-protein); }
+.mealTypeDinner { color: var(--color-primary); }
+.mealTypeSnack { color: var(--color-text-muted); }
+
+.mealRecipe {
+  font: var(--text-small);
+  color: var(--color-text);
+  line-height: 20px;
+}
+
+/* ── Macro Variance Bar ───────────────────────────────────────────────── */
+
+.varianceBar {
+  margin-bottom: var(--space-1);
+}
+
+.varianceHeader {
+  display: flex;
+  justify-content: space-between;
+  font: var(--text-badge);
+  color: var(--color-text-dim);
+  margin-bottom: var(--space-1);
+}
+
+.varianceValue {
+  font-weight: 600;
+}
+
+.varianceTrack {
+  height: var(--space-1);
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.varianceFill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease;
+  width: var(--progress-pct);
+}
+
+/* ── Weekly Summary ───────────────────────────────────────────────────── */
+
+.summaryCard {
+  margin-bottom: var(--space-4);
+}
+
+.summaryLabel {
+  font: var(--text-small-semibold);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
