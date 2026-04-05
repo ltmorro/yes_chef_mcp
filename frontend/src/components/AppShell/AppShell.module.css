@@ -1,0 +1,27 @@
+/* ── App Shell ────────────────────────────────────────────────────────── */
+
+.shell {
+  min-height: 100vh;
+}
+
+/* ── Main Content ─────────────────────────────────────────────────────── */
+
+.content {
+  padding-top: 56px;
+  min-height: 100vh;
+  transition: margin-left 0.2s ease;
+}
+
+.contentCollapsed {
+  margin-left: 64px;
+}
+
+.contentExpanded {
+  margin-left: 200px;
+}
+
+.contentInner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
