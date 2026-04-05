@@ -1,0 +1,111 @@
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+
+.sidebar {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  bottom: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  z-index: 10;
+  transition: width 0.2s ease;
+  overflow: hidden;
+}
+
+.collapsed {
+  width: 64px;
+}
+
+.expanded {
+  width: 200px;
+}
+
+/* ── Nav List ─────────────────────────────────────────────────────────── */
+
+.navList {
+  list-style: none;
+  padding: var(--space-2) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ── Nav Item ─────────────────────────────────────────────────────────── */
+
+.navItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-3);
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  font: var(--text-small);
+  text-decoration: none;
+  outline: none;
+}
+
+.navItem[data-hovered] {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.navItem[data-pressed] {
+  background: var(--color-surface-hover);
+}
+
+.navItem[data-focus-visible] {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+
+.navItemActive {
+  color: var(--color-primary);
+  border-left-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.navItemActive[data-hovered] {
+  color: var(--color-primary);
+}
+
+/* ── Icon & Label ─────────────────────────────────────────────────────── */
+
+.navIcon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* When collapsed, center icon and hide label */
+.collapsed .navItem {
+  flex-direction: column;
+  padding: var(--space-2) var(--space-1);
+  gap: var(--space-1);
+  border-left: none;
+  justify-content: center;
+}
+
+.collapsed .navItemActive {
+  border-left: none;
+  border-bottom: none;
+  background: var(--color-primary-bg);
+}
+
+.collapsed .navLabel {
+  font: var(--text-badge);
+  text-align: center;
+}
