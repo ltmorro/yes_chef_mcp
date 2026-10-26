@@ -108,8 +108,8 @@
   flex-wrap: wrap;
 }
 
-.status {
-  margin-top: var(--space-3);
+.hint {
+  margin-top: var(--space-2);
   font: var(--text-small);
-  color: var(--color-primary);
+  color: var(--color-text-muted);
 }

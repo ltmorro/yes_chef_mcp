@@ -3,28 +3,53 @@
  *
  * Each MCP view is rendered by the host after a show_* tool call. The host
  * pushes that tool's result to us (`ui/notifications/tool-result`); we read
- * its `structuredContent` (the view payload) and render it. Button actions
- * go back through the host with `app.callServerTool(...)`.
+ * its `structuredContent` (the view payload) and render it.
+ *
+ * Button actions go back through the host in one of three ways:
+ * - `callServerTool`: run a server tool directly (writes, refreshes);
+ * - `sendUserMessage`: hand the decision back to the model as a chat message;
+ * - `setModelContext`: quietly tell the model what the user did, for later turns.
+ * Hosts advertise which of these they support; see `hostSupport`.
  */
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 import type { App } from "@modelcontextprotocol/ext-apps";
 import type { CallToolResult } from "@modelcontextprotocol/client";
 import type {
   GroceryListData,
   MacroSetterData,
+  MacroTarget,
   RecipeSelectorData,
   WeeklyCalendarData,
 } from "./types.ts";
 
-export type { App };
+export type { App, CallToolResult };
+
+/** What the connected host lets this view do. Missing support hides the matching buttons. */
+export interface HostSupport {
+  /** tools/call proxied to the MCP server. */
+  serverTools: boolean;
+  /** ui/message: add a user message to the conversation. */
+  message: boolean;
+  /** ui/update-model-context: set context for the model's next turn. */
+  modelContext: boolean;
+}
+
+/** A connected view with its current payload. */
+export interface ConnectedView<T> {
+  app: App;
+  data: T;
+  host: HostSupport;
+  /** Re-render from another tool result (e.g. a refresh via callServerTool). */
+  applyResult: (result: CallToolResult) => void;
+}
 
 export type McpViewState<T> =
   | { status: "connecting" }
   | { status: "error"; message: string }
   | { status: "waiting"; app: App }
-  | { status: "ready"; app: App; data: T };
+  | ({ status: "ready" } & ConnectedView<T>);
 
 /** Narrows a tool result's structuredContent to a view payload, or null if it doesn't fit. */
 export type PayloadParser<T> = (structuredContent: unknown) => T | null;
@@ -34,6 +59,15 @@ function firstText(result: CallToolResult): string | null {
     if (block.type === "text") return block.text;
   }
   return null;
+}
+
+export function hostSupport(app: App): HostSupport {
+  const caps = app.getHostCapabilities();
+  return {
+    serverTools: caps?.serverTools !== undefined,
+    message: caps?.message !== undefined,
+    modelContext: caps?.updateModelContext !== undefined,
+  };
 }
 
 /**
@@ -47,23 +81,29 @@ export function useMcpView<T>(appName: string, parse: PayloadParser<T>): McpView
   const [data, setData] = useState<T | null>(null);
   const [resultError, setResultError] = useState<string | null>(null);
 
+  // Read the parser through a ref so applyResult stays stable across renders.
+  const parseRef = useRef(parse);
+  parseRef.current = parse;
+
+  const applyResult = useCallback((result: CallToolResult) => {
+    if (result.isError) {
+      setResultError(firstText(result) ?? "The tool call failed.");
+      return;
+    }
+    const parsed = parseRef.current(result.structuredContent);
+    if (parsed === null) {
+      setResultError("The tool result did not include the data this view needs.");
+      return;
+    }
+    setResultError(null);
+    setData(parsed);
+  }, []);
+
   const { app, isConnected, error } = useApp({
     appInfo: { name: appName, version: "0.1.0" },
     capabilities: {},
     onAppCreated: (created) => {
-      created.ontoolresult = (result) => {
-        if (result.isError) {
-          setResultError(firstText(result) ?? "The tool call failed.");
-          return;
-        }
-        const parsed = parse(result.structuredContent);
-        if (parsed === null) {
-          setResultError("The tool result did not include the data this view needs.");
-          return;
-        }
-        setResultError(null);
-        setData(parsed);
-      };
+      created.ontoolresult = applyResult;
       created.ontoolcancelled = () => {
         setResultError("The tool call was cancelled.");
       };
@@ -74,17 +114,44 @@ export function useMcpView<T>(appName: string, parse: PayloadParser<T>): McpView
   if (!app || !isConnected) return { status: "connecting" };
   if (resultError) return { status: "error", message: resultError };
   if (data === null) return { status: "waiting", app };
-  return { status: "ready", app, data };
+  return { status: "ready", app, data, host: hostSupport(app), applyResult };
 }
 
-/** Fire-and-forget a server tool call through the host, logging failures. */
-export function callTool(app: App, name: string, args: Record<string, unknown>): void {
-  app.callServerTool({ name, arguments: args }).then(
-    (result) => {
-      if (result.isError) console.error(`Tool ${name} failed:`, firstText(result));
-    },
-    (err: unknown) => console.error(`Tool ${name} failed:`, err),
-  );
+/* ── Actions ─────────────────────────────────────────────────────────────
+ * Each helper resolves on success and throws an Error with a readable
+ * message otherwise, so pages can show it next to the button. */
+
+/** Call a server tool through the host. Throws on transport errors and error results. */
+export async function callServerTool(
+  app: App,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<CallToolResult> {
+  const result = await app.callServerTool({ name, arguments: args });
+  if (result.isError) throw new Error(firstText(result) ?? `${name} failed.`);
+  return result;
+}
+
+/** Add a user message to the conversation, prompting a model response. */
+export async function sendUserMessage(app: App, text: string): Promise<void> {
+  const result = await app.sendMessage({ role: "user", content: [{ type: "text", text }] });
+  if (result.isError) throw new Error("The host didn't accept the message.");
+}
+
+/**
+ * Replace the model context this view contributes (each call overwrites the
+ * previous one). Structured content is only sent to hosts that accept it.
+ */
+export async function setModelContext(
+  app: App,
+  text: string,
+  structuredContent?: Record<string, unknown>,
+): Promise<void> {
+  const accepts = app.getHostCapabilities()?.updateModelContext;
+  await app.updateModelContext({
+    content: [{ type: "text", text }],
+    ...(structuredContent && accepts?.structuredContent ? { structuredContent } : {}),
+  });
 }
 
 /* ── Payload parsers ─────────────────────────────────────────────────────
@@ -98,11 +165,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const parseMacroSetterData: PayloadParser<MacroSetterData> = (value) => {
-  if (!isRecord(value)) return null;
+  if (!isRecord(value) || typeof value.member_id !== "string") return null;
   const targets = value.current_targets;
-  if (targets === null || targets === undefined) return { current_targets: null };
-  if (!isRecord(targets) || typeof targets.protein_g !== "number") return null;
+  if (targets !== null && targets !== undefined) {
+    if (!isRecord(targets) || typeof targets.protein_g !== "number") return null;
+  }
   return value as unknown as MacroSetterData;
+};
+
+/** structuredContent of set_macro_target (a MacroTargetSchema). */
+export const parseMacroTarget: PayloadParser<MacroTarget> = (value) => {
+  if (!isRecord(value) || typeof value.id !== "string") return null;
+  if (typeof value.name !== "string" || typeof value.calories !== "number") return null;
+  return value as unknown as MacroTarget;
 };
 
 export const parseRecipeSelectorData: PayloadParser<RecipeSelectorData> = (value) => {
@@ -111,9 +186,8 @@ export const parseRecipeSelectorData: PayloadParser<RecipeSelectorData> = (value
 };
 
 export const parseWeeklyCalendarData: PayloadParser<WeeklyCalendarData> = (value) => {
-  if (!isRecord(value) || !isRecord(value.plan_summary) || !Array.isArray(value.recipes)) {
-    return null;
-  }
+  if (!isRecord(value) || typeof value.plan_id !== "string") return null;
+  if (!isRecord(value.plan_summary) || !Array.isArray(value.recipes)) return null;
   return value as unknown as WeeklyCalendarData;
 };
 

@@ -10,14 +10,14 @@ import { StrictMode } from "react";
 import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { useMcpView } from "./bridge.ts";
-import type { App, PayloadParser } from "./bridge.ts";
+import type { ConnectedView, PayloadParser } from "./bridge.ts";
 import { ViewStatus } from "./components";
 import "./global.css";
 
 interface McpViewProps<T> {
   appName: string;
   parse: PayloadParser<T>;
-  render: (app: App, data: T) => ReactNode;
+  render: (view: ConnectedView<T>) => ReactNode;
 }
 
 function ConnectedMcpView<T>({ appName, parse, render }: McpViewProps<T>) {
@@ -31,7 +31,7 @@ function ConnectedMcpView<T>({ appName, parse, render }: McpViewProps<T>) {
     case "waiting":
       return <ViewStatus title="Waiting for data…" />;
     case "ready":
-      return <>{render(state.app, state.data)}</>;
+      return <>{render(state)}</>;
   }
 }
 

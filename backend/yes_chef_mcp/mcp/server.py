@@ -20,6 +20,9 @@ from yes_chef_mcp.core.meal_composer import compose_meal as _compose
 from yes_chef_mcp.core.meal_composer import suggest_complements
 from yes_chef_mcp.core.members import (
     create_macro_target,
+    get_active_macro_target,
+    get_default_member,
+    get_member,
     list_macro_targets,
     list_members,
 )
@@ -500,6 +503,10 @@ async def set_macro_target(
     same name). If set_active is true (default), the member's other targets are
     deactivated so this one becomes the active target.
     """
+    # Check up front so an unknown member is a readable error, not a FK failure.
+    if await get_member(member_id) is None:
+        raise ToolError(f"Member not found: {member_id!r}")
+
     target = await create_macro_target(
         member_id, name, calories, protein_g, carbs_g, fat_g, set_active
     )
@@ -595,6 +602,10 @@ _VIEW_CSP = ResourceCSP(
 )
 
 
+# Name new targets get when the member has no active target to take a name from.
+_DEFAULT_TARGET_NAME = "Custom"
+
+
 @mcp.tool(
     app=AppConfig(resource_uri="ui://yes_chef_mcp/macro-setter.html"),
     output_schema=MacroSetterDataSchema.model_json_schema(),
@@ -604,25 +615,41 @@ async def show_macro_target_setter(
 ) -> ToolResult:
     """Show an interactive macro target editor with sliders and pie chart.
 
-    The user can adjust protein, carbs, and fat targets and see real-time
-    calorie impact. When the user clicks Save, the app calls
-    save_macro_targets with the new values.
+    Edits the given member's targets, or the default member's if member_id is
+    omitted. The user can adjust protein, carbs, and fat and see the calorie
+    impact; Save calls set_macro_target (set_active=true) for that member, and the
+    view then reports the new targets back into the conversation.
     """
-    targets = await get_macro_targets(member_id)
-    active = next((t for t in targets if t.is_active), None)
+    if member_id:
+        member = await get_member(member_id)
+        if member is None:
+            raise ToolError(f"Member not found: {member_id!r}")
+    else:
+        member = await get_default_member()
+        if member is None:
+            raise ToolError(
+                "No default member is set; pass a member_id (see list_family_members)."
+            )
+
+    active = await get_active_macro_target(member.id)
 
     data = MacroSetterDataSchema(
-        current_targets=MacroSetterTargetsSchema.model_validate(active) if active else None
+        member_id=member.id,
+        member_name=member.name,
+        target_name=active.name if active else _DEFAULT_TARGET_NAME,
+        current_targets=MacroSetterTargetsSchema.model_validate(active) if active else None,
     )
 
     if active:
         summary = (
-            f"Showing macro target editor with active target '{active.name}': "
-            f"{active.calories:.0f} kcal, {active.protein_g:.0f}g protein, "
+            f"Showing macro target editor for {member.name} with active target "
+            f"'{active.name}': {active.calories:.0f} kcal, {active.protein_g:.0f}g protein, "
             f"{active.carbs_g:.0f}g carbs, {active.fat_g:.0f}g fat"
         )
     else:
-        summary = "Showing macro target editor (no active target; using defaults)"
+        summary = (
+            f"Showing macro target editor for {member.name} (no active target; using defaults)"
+        )
 
     return ToolResult(content=summary, structured_content=data.model_dump(mode="json"))
 
@@ -642,8 +669,8 @@ async def show_recipe_selector(
 ) -> ToolResult:
     """Show a visual recipe browser with cards, category filters, and macro badges.
 
-    Displays search results in a responsive grid. The user selects a recipe
-    and the app calls select_recipe with the chosen recipe_id.
+    Displays search results in a responsive grid. When the user confirms a
+    recipe, the view sends it back as a chat message with its recipe_id.
     """
     page = await search_recipes_by_query(
         query=query,
@@ -671,15 +698,14 @@ async def show_weekly_calendar(
     """Show a 7-day meal plan calendar with macro variance indicators.
 
     Displays all meals per day with color-coded progress bars showing
-    proximity to daily macro targets. Includes action buttons for
-    optimize, rebalance, and refresh.
+    proximity to daily macro targets. Refresh re-runs this tool; Optimize and
+    Rebalance ask you (via a chat message) to propose changes for the plan.
     """
     plan_summary = await get_meal_plan_summary(plan_id, member_id, detail_level=DetailLevel.FULL)
 
     targets: MacroSummarySchema | None = None
     if member_id:
-        target_list = await get_macro_targets(member_id)
-        active = next((t for t in target_list if t.is_active), None)
+        active = await get_active_macro_target(member_id)
         if active:
             targets = MacroSummarySchema.model_validate(active)
 
@@ -694,6 +720,8 @@ async def show_weekly_calendar(
     recipes = await search_by_ids(recipe_ids) if recipe_ids else None
 
     data = WeeklyCalendarDataSchema(
+        plan_id=plan_id,
+        member_id=member_id,
         plan_summary=plan_summary,
         targets=targets,
         recipes=[RecipeSearchHitSchema.model_validate(h) for h in recipes.hits] if recipes else [],
@@ -720,8 +748,8 @@ async def show_grocery_checklist(
     """Show an interactive grocery checklist grouped by ingredient category.
 
     Users can check off items they already have in their pantry. When they
-    click Confirm, the app calls confirm_grocery_list with only the
-    unchecked items they need to buy.
+    click Confirm, the view sends the unchecked items (the to-buy list) back
+    into the conversation.
     """
     grocery_list = await generate_grocery_list(plan_id, merge_similar, exclude_pantry)
     data = GroceryListDataSchema(grocery_list=grocery_list)

@@ -74,6 +74,11 @@ export interface MacroSetterTargets {
 }
 
 export interface MacroSetterData {
+  /** The member being edited; saves go to this member. */
+  member_id: string;
+  member_name: string;
+  /** Name new targets are saved under. */
+  target_name: string;
   current_targets: MacroSetterTargets | null;
 }
 
@@ -82,6 +87,9 @@ export interface RecipeSelectorData {
 }
 
 export interface WeeklyCalendarData {
+  plan_id: string;
+  /** Whose targets the calendar compares against; null for no member. */
+  member_id: string | null;
   plan_summary: PlanSummary;
   targets: MacroSummary | null;
   /** Hits for every recipe referenced by the plan. */
@@ -91,3 +99,10 @@ export interface WeeklyCalendarData {
 export interface GroceryListData {
   grocery_list: GroceryList;
 }
+
+/** Progress of a button action, shown next to the button. */
+export type ActionState =
+  | { kind: "idle" }
+  | { kind: "pending"; message: string }
+  | { kind: "done"; message: string }
+  | { kind: "error"; message: string };
