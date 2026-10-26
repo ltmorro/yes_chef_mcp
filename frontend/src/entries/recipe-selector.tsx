@@ -4,11 +4,16 @@ import { mountMcpView } from "../mcpView.tsx";
 import { RecipeSelectorPage } from "../pages";
 import type { RecipeHit } from "../types.ts";
 
-/** Keep the model aware of what's selected, without prompting a reply. */
+/**
+ * Keep the model aware of what's selected, without prompting a reply.
+ *
+ * Deliberately says nothing about confirmation: "Use This Recipe" sends a
+ * user message and does not touch model context, so a "not confirmed yet"
+ * claim here would contradict that message afterwards.
+ */
 function reportSelection(app: App, recipe: RecipeHit | null): void {
   const text = recipe
-    ? `In the recipe browser the user has selected ${recipe.name} (id ${recipe.id}), ` +
-      "but hasn't confirmed it yet."
+    ? `In the recipe browser the currently selected recipe is ${recipe.name} (id ${recipe.id}).`
     : "In the recipe browser the user has no recipe selected.";
   const selected = recipe ? { id: recipe.id, name: recipe.name } : null;
   setModelContext(app, text, { selected_recipe: selected }).catch((err: unknown) =>
