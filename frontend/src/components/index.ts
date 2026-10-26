@@ -17,3 +17,5 @@ export { ActionStatus } from "./ActionStatus";
 export type { ActionStatusProps } from "./ActionStatus";
 export { FullscreenToggle } from "./FullscreenToggle";
 export type { FullscreenToggleProps } from "./FullscreenToggle";
+export { TimerChip } from "./TimerChip";
+export type { TimerChipProps } from "./TimerChip";

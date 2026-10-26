@@ -1,0 +1,19 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"id\":\"374c25a0-cba2-46f5-bbdc-3751b30bb582\",\"recipe_id\":\"r1\",\"servings\":3.0,\"cooked_at\":\"2026-10-26T22:56:36.971836\",\"rating\":\"good\",\"plan_id\":\"plan-spring\",\"day_offset\":0,\"meal_type\":\"dinner\"}"
+    }
+  ],
+  "structuredContent": {
+    "id": "374c25a0-cba2-46f5-bbdc-3751b30bb582",
+    "recipe_id": "r1",
+    "servings": 3.0,
+    "cooked_at": "2026-10-26T22:56:36.971836",
+    "rating": "good",
+    "plan_id": "plan-spring",
+    "day_offset": 0,
+    "meal_type": "dinner"
+  },
+  "isError": false
+}

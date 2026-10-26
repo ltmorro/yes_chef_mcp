@@ -94,6 +94,14 @@ class MatchType(StrEnum):
     BOTH = "both"
 
 
+class CookRating(StrEnum):
+    """How a cooked meal went, from cook mode's Done screen."""
+
+    GOOD = "good"
+    OKAY = "okay"
+    BAD = "bad"
+
+
 # ── Ingredient ─────────────────────────────────────────────────────────────
 
 
@@ -221,6 +229,30 @@ class MealSlot:
     recipe_id: str
     servings: float = 1.0
     member_servings: dict[str, float] = field(default_factory=dict)
+
+
+# ── Cook Mode ───────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True, slots=True)
+class CookStep:
+    index: int  # 1-based, as shown to the cook
+    text: str
+    timer_seconds: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MealLogEntry:
+    """A meal someone cooked, optionally tied to the plan slot it filled."""
+
+    id: str
+    recipe_id: str
+    servings: float
+    cooked_at: datetime
+    rating: CookRating | None = None
+    plan_id: str | None = None
+    day_offset: int | None = None
+    meal_type: MealType | None = None
 
 
 # ── Search Results ────────────────────────────────────────────────────────

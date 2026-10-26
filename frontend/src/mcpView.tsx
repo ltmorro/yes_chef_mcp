@@ -1,5 +1,5 @@
 /**
- * Mount helper shared by the four MCP view entries.
+ * Mount helper shared by the MCP view entries.
  *
  * Connects to the host, waits for the show_* tool result, and renders the
  * shared page component with that payload. Connection and payload problems

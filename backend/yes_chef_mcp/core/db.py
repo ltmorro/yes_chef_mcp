@@ -118,6 +118,18 @@ CREATE TABLE IF NOT EXISTS meal_slots (
     PRIMARY KEY (plan_id, day_offset, meal_type, recipe_id)
 );
 
+-- Meals cooked in cook mode (plan slot columns are null for off-plan cooking)
+CREATE TABLE IF NOT EXISTS meal_log (
+    id              TEXT PRIMARY KEY,
+    recipe_id       TEXT NOT NULL REFERENCES recipes(id),
+    plan_id         TEXT REFERENCES meal_plans(id),
+    day_offset      INTEGER,
+    meal_type       TEXT,
+    servings        REAL NOT NULL,
+    rating          TEXT,
+    cooked_at       TEXT NOT NULL
+);
+
 -- Schema version tracking
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL
@@ -130,6 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_members_family ON members(family_id);
 CREATE INDEX IF NOT EXISTS idx_macro_targets_member ON macro_targets(member_id);
 CREATE INDEX IF NOT EXISTS idx_meal_slots_plan ON meal_slots(plan_id);
 CREATE INDEX IF NOT EXISTS idx_nutrition_recipe ON nutrition(recipe_id);
+CREATE INDEX IF NOT EXISTS idx_meal_log_cooked_at ON meal_log(cooked_at);
 """
 
 FTS_SCHEMA_SQL = """

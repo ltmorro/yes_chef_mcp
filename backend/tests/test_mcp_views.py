@@ -18,6 +18,7 @@ from yes_chef_mcp.core.db import get_db
 from yes_chef_mcp.core.models import MealType, Recipe
 from yes_chef_mcp.core.planner import add_meal_slot, create_meal_plan
 from yes_chef_mcp.core.schemas import (
+    CookModeDataSchema,
     GroceryListDataSchema,
     MacroSetterDataSchema,
     RecipeSelectorDataSchema,
@@ -30,6 +31,7 @@ VIEW_TOOLS: dict[str, str] = {
     "show_recipe_selector": "ui://yes_chef_mcp/recipe-selector.html",
     "show_weekly_calendar": "ui://yes_chef_mcp/weekly-calendar.html",
     "show_grocery_checklist": "ui://yes_chef_mcp/grocery-list.html",
+    "show_cook_mode": "ui://yes_chef_mcp/cook-mode.html",
 }
 
 MCP_APP_MIME = "text/html;profile=mcp-app"
@@ -90,6 +92,7 @@ PREFERS_BORDER: dict[str, bool] = {
     "ui://yes_chef_mcp/recipe-selector.html": False,
     "ui://yes_chef_mcp/weekly-calendar.html": False,
     "ui://yes_chef_mcp/grocery-list.html": True,
+    "ui://yes_chef_mcp/cook-mode.html": False,
 }
 
 
@@ -130,7 +133,10 @@ async def test_view_resources_are_self_contained() -> None:
 
 
 async def _call_view(
-    client: Client[FastMCPTransport], tool_name: str, args: dict[str, str], schema: type[BaseModel]
+    client: Client[FastMCPTransport],
+    tool_name: str,
+    args: dict[str, str | float],
+    schema: type[BaseModel],
 ) -> tuple[str, BaseModel]:
     result = await client.call_tool(tool_name, args)
     assert result.structured_content is not None
@@ -293,3 +299,124 @@ async def test_show_weekly_calendar_without_member(sample_plan_id: str) -> None:
     assert payload.plan_id == sample_plan_id
     assert payload.member_id is None
     assert payload.targets is None
+
+
+# ── Cook mode ─────────────────────────────────────────────────────────────
+
+
+def _quantities(payload: CookModeDataSchema) -> dict[str, float | None]:
+    return {i.name: i.quantity for i in payload.ingredients}
+
+
+async def test_show_cook_mode_payload(sample_recipes: list[Recipe]) -> None:
+    async with Client(mcp) as client:
+        summary, payload = await _call_view(
+            client, "show_cook_mode", {"recipe_id": "recipe-chicken"}, CookModeDataSchema
+        )
+
+    assert isinstance(payload, CookModeDataSchema)
+    assert payload.recipe_name == "Grilled Chicken Breast"
+    # No servings or slot: cook the recipe's own yield, quantities unchanged
+    assert payload.servings == 4
+    assert payload.base_servings == 4
+    assert _quantities(payload)["chicken breast"] == 2.0
+    assert [(s.index, s.timer_seconds) for s in payload.steps] == [(1, 1200)]
+    assert payload.plan_id is None
+    assert summary == (
+        "Showing cook mode for Grilled Chicken Breast: 1 step, ingredients scaled to 4 servings"
+    )
+
+
+async def test_show_cook_mode_scales_to_servings(sample_recipes: list[Recipe]) -> None:
+    async with Client(mcp) as client:
+        _, payload = await _call_view(
+            client,
+            "show_cook_mode",
+            {"recipe_id": "recipe-chicken", "servings": 6},
+            CookModeDataSchema,
+        )
+
+    assert isinstance(payload, CookModeDataSchema)
+    assert payload.servings == 6
+    assert _quantities(payload) == {"chicken breast": 3.0, "olive oil": 3.0, "garlic": 4.5}
+
+
+async def test_show_cook_mode_uses_slot_servings(sample_plan_id: str) -> None:
+    await add_meal_slot(
+        sample_plan_id, 2, MealType.LUNCH, "recipe-chicken", member_servings={"a": 1, "b": 1.5}
+    )
+    slot = {"plan_id": sample_plan_id, "day_offset": 2, "meal_type": "lunch"}
+    async with Client(mcp) as client:
+        _, payload = await _call_view(
+            client, "show_cook_mode", {"recipe_id": "recipe-chicken", **slot}, CookModeDataSchema
+        )
+        # An explicit servings wins over the slot's
+        _, explicit = await _call_view(
+            client,
+            "show_cook_mode",
+            {"recipe_id": "recipe-chicken", "servings": 4, **slot},
+            CookModeDataSchema,
+        )
+
+    assert isinstance(payload, CookModeDataSchema)
+    assert isinstance(explicit, CookModeDataSchema)
+    # The slot's member servings sum to 2.5 of a 4-serving recipe
+    assert payload.servings == 2.5
+    assert _quantities(payload)["chicken breast"] == 1.25
+    assert (payload.plan_id, payload.day_offset, payload.meal_type) == (
+        sample_plan_id,
+        2,
+        MealType.LUNCH,
+    )
+    assert explicit.servings == 4
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        ({"recipe_id": "nope"}, "Recipe not found: 'nope'"),
+        ({"recipe_id": "recipe-chicken", "servings": 0}, "servings must be greater than 0"),
+        ({"recipe_id": "recipe-chicken", "day_offset": 0}, "together, or none of them"),
+        (
+            {"recipe_id": "recipe-pasta", "day_offset": 0, "meal_type": "dinner"},
+            "is not in plan",
+        ),
+    ],
+)
+async def test_show_cook_mode_errors(
+    sample_plan_id: str, args: dict[str, str | float], message: str
+) -> None:
+    if "meal_type" in args:
+        args = {**args, "plan_id": sample_plan_id}
+    async with Client(mcp) as client:
+        with pytest.raises(ToolError, match=message):
+            await client.call_tool("show_cook_mode", args)
+
+
+async def test_log_cooked_meal_tool(sample_plan_id: str) -> None:
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "log_cooked_meal",
+            {
+                "recipe_id": "recipe-chicken",
+                "servings": 1,
+                "rating": "okay",
+                "plan_id": sample_plan_id,
+                "day_offset": 0,
+                "meal_type": "dinner",
+            },
+        )
+        with pytest.raises(ToolError, match="Recipe not found: 'nope'"):
+            await client.call_tool("log_cooked_meal", {"recipe_id": "nope", "servings": 1})
+        with pytest.raises(ToolError, match="Meal plan not found: 'nope'"):
+            await client.call_tool(
+                "log_cooked_meal",
+                {"recipe_id": "recipe-chicken", "servings": 1, "plan_id": "nope"},
+            )
+
+    assert result.structured_content is not None
+    assert result.structured_content["rating"] == "okay"
+    assert result.structured_content["plan_id"] == sample_plan_id
+    async with get_db() as db, db.execute("SELECT COUNT(*) FROM meal_log") as cursor:
+        row = await cursor.fetchone()
+    assert row is not None and row[0] == 1

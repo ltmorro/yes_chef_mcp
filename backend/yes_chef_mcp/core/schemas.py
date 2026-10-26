@@ -14,6 +14,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from yes_chef_mcp.core.models import (
+    CookRating,
     DetailLevel,
     MatchType,
     MealType,
@@ -271,6 +272,30 @@ class GroceryListSchema(BaseModel):
     items: list[GroceryItemSchema] = Field(default_factory=list)
 
 
+# ── Cook Mode ────────────────────────────────────────────────────────────
+
+
+class CookStepSchema(BaseModel):  # type: ignore[explicit-any]
+    model_config = ConfigDict(from_attributes=True)
+
+    index: int
+    text: str
+    timer_seconds: int | None = None
+
+
+class MealLogEntrySchema(BaseModel):  # type: ignore[explicit-any]
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    recipe_id: str
+    servings: float
+    cooked_at: datetime
+    rating: CookRating | None = None
+    plan_id: str | None = None
+    day_offset: int | None = None
+    meal_type: MealType | None = None
+
+
 # ── Optimization ─────────────────────────────────────────────────────────
 
 
@@ -443,3 +468,17 @@ class WeeklyCalendarDataSchema(BaseModel):  # type: ignore[explicit-any]
 
 class GroceryListDataSchema(BaseModel):  # type: ignore[explicit-any]
     grocery_list: GroceryListSchema
+
+
+class CookModeDataSchema(BaseModel):  # type: ignore[explicit-any]
+    recipe_id: str
+    recipe_name: str
+    # Servings being cooked; ingredients are already scaled from base_servings to this
+    servings: float
+    base_servings: int
+    ingredients: list[IngredientSchema] = Field(default_factory=list)
+    steps: list[CookStepSchema] = Field(default_factory=list)
+    # The plan slot being cooked, if any, echoed so Done can log against it
+    plan_id: str | None = None
+    day_offset: int | None = None
+    meal_type: MealType | None = None
