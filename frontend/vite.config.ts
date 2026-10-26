@@ -2,6 +2,7 @@ import { resolve } from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { viteSingleFile } from "vite-plugin-singlefile";
+import MCP_VIEWS from "./views.json";
 
 /**
  * Two build flavours share this config:
@@ -12,19 +13,15 @@ import { viteSingleFile } from "vite-plugin-singlefile";
  *   self-contained HTML file in `dist/views/`, with all JS and CSS inlined.
  *   MCP hosts render it in a sandboxed iframe, so it can't load assets from
  *   our server. `scripts/build-views.mjs` runs this once per view.
+ *
+ * The list of views lives in `views.json`, shared with the build script.
  */
-const MCP_VIEWS = [
-  "macro-setter",
-  "recipe-selector",
-  "weekly-calendar",
-  "grocery-list",
-] as const;
 
 export default defineConfig(() => {
   const view = process.env.VIEW;
 
   if (view) {
-    if (!(MCP_VIEWS as readonly string[]).includes(view)) {
+    if (!MCP_VIEWS.includes(view)) {
       throw new Error(`Unknown VIEW "${view}". Expected one of: ${MCP_VIEWS.join(", ")}`);
     }
     return {
