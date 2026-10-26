@@ -74,17 +74,29 @@ export function useRestWeeklyCalendarSource(memberId?: string): WeeklyCalendarSo
 
   useEffect(() => {
     if (!selectedPlanId) return;
+    // Ignore responses for a plan/member that is no longer selected
+    let stale = false;
     setLoading(true);
     fetchPlanSummary(selectedPlanId, memberId)
-      .then(async (plan_summary) => {
-        // Recipe hits are non-critical: cards fall back to name-only without them
-        const recipes = await fetchRecipesByIds(planRecipeIds(plan_summary)).catch(
-          (): RecipeHit[] => [],
-        );
-        setData({ plan_summary, targets: null, recipes });
+      .then((plan_summary) => {
+        if (stale) return;
+        setData({ plan_summary, targets: null, recipes: [] });
+        setLoading(false);
+        // Recipe hits are non-critical enrichment: cards fall back to name-only without them
+        fetchRecipesByIds(planRecipeIds(plan_summary))
+          .then((recipes: RecipeHit[]) => {
+            if (!stale) setData((prev) => (prev ? { ...prev, recipes } : prev));
+          })
+          .catch(() => { /* keep fallback cards */ });
       })
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (stale) return;
+        setData(null);
+        setLoading(false);
+      });
+    return () => {
+      stale = true;
+    };
   }, [selectedPlanId, memberId]);
 
   useEffect(() => {
