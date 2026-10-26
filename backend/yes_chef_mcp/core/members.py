@@ -85,6 +85,25 @@ async def list_macro_targets(member_id: str | None = None) -> list[MacroTarget]:
     return [_row_to_target(row) for row in rows]
 
 
+async def get_active_macro_target(member_id: str) -> MacroTarget | None:
+    """Get a member's active macro target, or None if they have none.
+
+    If legacy data has several active targets, the oldest one wins, matching
+    the first active entry of list_macro_targets().
+    """
+    async with (
+        get_db() as db,
+        db.execute(
+            "SELECT * FROM macro_targets WHERE member_id = ? AND is_active = 1 "
+            "ORDER BY rowid LIMIT 1",
+            (member_id,),
+        ) as cursor,
+    ):
+        row = await cursor.fetchone()
+
+    return _row_to_target(row) if row else None
+
+
 async def create_macro_target(
     member_id: str,
     name: str,

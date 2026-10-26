@@ -5,8 +5,7 @@
  * one Vite build per view. See vite.config.ts for the per-view config.
  */
 import { build } from "vite";
-
-const VIEWS = ["macro-setter", "recipe-selector", "weekly-calendar", "grocery-list"];
+import VIEWS from "../views.json" with { type: "json" };
 
 for (const view of VIEWS) {
   process.env.VIEW = view;

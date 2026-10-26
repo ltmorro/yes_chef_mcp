@@ -20,6 +20,7 @@ from yes_chef_mcp.core.meal_composer import compose_meal as _compose
 from yes_chef_mcp.core.meal_composer import suggest_complements
 from yes_chef_mcp.core.members import (
     create_macro_target,
+    get_active_macro_target,
     get_default_member,
     get_member,
     list_macro_targets,
@@ -628,8 +629,7 @@ async def show_macro_target_setter(
                 "No default member is set; pass a member_id (see list_family_members)."
             )
 
-    targets = await get_macro_targets(member.id)
-    active = next((t for t in targets if t.is_active), None)
+    active = await get_active_macro_target(member.id)
 
     data = MacroSetterDataSchema(
         member_id=member.id,
@@ -703,8 +703,7 @@ async def show_weekly_calendar(
 
     targets: MacroSummarySchema | None = None
     if member_id:
-        target_list = await get_macro_targets(member_id)
-        active = next((t for t in target_list if t.is_active), None)
+        active = await get_active_macro_target(member_id)
         if active:
             targets = MacroSummarySchema.model_validate(active)
 

@@ -31,5 +31,5 @@ Domain logic layer. No HTTP or MCP concerns leak in here.
 - `recipe_store.py` — recipe CRUD, nutrition storage, FTS/embedding indexing
 - `meal_composer.py` — assemble meals from recipes, compute per-member deviations, suggest complements
 - `planner.py` — meal plan CRUD (create, slot assignment, listing)
-- `members.py` — family members and macro targets (get, default member, list, create target)
+- `members.py` — family members and macro targets (get, default member, list, active target, create target)
 - `grocery.py` — aggregate ingredients into categorized shopping lists
