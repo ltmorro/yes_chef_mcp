@@ -350,3 +350,18 @@ async def test_get_recipe_detail_unknown_raises(client: Client) -> None:
 async def test_get_meal_plan_summary_unknown_raises(client: Client) -> None:
     with pytest.raises(ToolError, match="Meal plan not found: 'nope'"):
         await client.call_tool("get_meal_plan_summary", {"plan_id": "nope"})
+
+
+async def test_set_macro_target_unknown_member_raises(client: Client) -> None:
+    with pytest.raises(ToolError, match="Member not found: 'nobody'"):
+        await client.call_tool(
+            "set_macro_target",
+            {
+                "member_id": "nobody",
+                "name": "Cut",
+                "calories": 2000,
+                "protein_g": 150,
+                "carbs_g": 200,
+                "fat_g": 60,
+            },
+        )

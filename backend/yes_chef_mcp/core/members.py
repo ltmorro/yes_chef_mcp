@@ -49,6 +49,28 @@ async def list_members(family_id: str | None = None) -> list[Member]:
     return [_row_to_member(row) for row in rows]
 
 
+async def get_member(member_id: str) -> Member | None:
+    """Get a member by ID, or None if there is no such member."""
+    async with (
+        get_db() as db,
+        db.execute("SELECT * FROM members WHERE id = ?", (member_id,)) as cursor,
+    ):
+        row = await cursor.fetchone()
+
+    return _row_to_member(row) if row else None
+
+
+async def get_default_member() -> Member | None:
+    """Get the first member flagged is_default, or None if no member is."""
+    async with (
+        get_db() as db,
+        db.execute("SELECT * FROM members WHERE is_default = 1 ORDER BY rowid LIMIT 1") as cursor,
+    ):
+        row = await cursor.fetchone()
+
+    return _row_to_member(row) if row else None
+
+
 async def list_macro_targets(member_id: str | None = None) -> list[MacroTarget]:
     """List macro targets, optionally filtered by member, in insertion order."""
     condition = " WHERE member_id = ?" if member_id else ""

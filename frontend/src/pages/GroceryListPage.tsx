@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Checkbox } from "react-aria-components";
-import { Button, Card } from "../components";
+import { ActionStatus, Button, Card } from "../components";
 import type { GroceryItem, GroceryListData } from "../types.ts";
 import { fetchPlans, fetchGroceryList } from "../api.ts";
+import { useAsyncAction } from "../useAsyncAction.ts";
 import styles from "./GroceryListPage.module.css";
 
 /* ── Data source ─────────────────────────────────────────────────────── */
@@ -35,8 +36,11 @@ export interface GroceryListSource {
   data: GroceryListData | null;
   /** SPA only: choose which plan's list to show. */
   plans?: PlanPicker;
-  /** Omitted in the SPA, where the confirm button has no action yet. */
-  onConfirm?: (confirmation: GroceryConfirmation) => void;
+  /**
+   * Hand the to-buy list back. Omitted (and the button hidden) in the SPA,
+   * which has nowhere to send it yet, and in hosts that can't send messages.
+   */
+  onConfirm?: (confirmation: GroceryConfirmation) => Promise<void>;
 }
 
 /** SPA data source backed by the REST API. */
@@ -225,6 +229,7 @@ export function GroceryListPage({ source }: GroceryListPageProps) {
   const { loading, data, plans, onConfirm } = source;
   const items = data?.grocery_list.items ?? NO_ITEMS;
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  const [confirmState, runConfirm] = useAsyncAction();
 
   // A new list (another plan, or a new tool result) starts fully unchecked
   useEffect(() => {
@@ -269,12 +274,18 @@ export function GroceryListPage({ source }: GroceryListPageProps) {
   }, [items]);
 
   const handleConfirm = useCallback(() => {
-    onConfirm?.({
-      items: items.filter((_, idx) => !checkedIds.has(idx)),
-      checked_off_count: checkedIds.size,
-      total_count: items.length,
+    if (!onConfirm) return;
+    const toBuy = items.filter((_, idx) => !checkedIds.has(idx));
+    runConfirm("Sending…", async () => {
+      await onConfirm({
+        items: toBuy,
+        checked_off_count: checkedIds.size,
+        total_count: items.length,
+      });
+      const noun = toBuy.length === 1 ? "item" : "items";
+      return `Sent your shopping list (${toBuy.length} ${noun}) to the conversation.`;
     });
-  }, [onConfirm, items, checkedIds]);
+  }, [onConfirm, runConfirm, items, checkedIds]);
 
   if (loading && items.length === 0) {
     return (
@@ -342,15 +353,18 @@ export function GroceryListPage({ source }: GroceryListPageProps) {
         <Button variant="ghost" onPress={() => setCheckedIds(new Set())}>
           Uncheck All
         </Button>
-        <Button
-          isDisabled={items.length === 0}
-          onPress={onConfirm ? handleConfirm : undefined}
-        >
-          {checkedIds.size === items.length
-            ? "All Items In Pantry"
-            : `Confirm List (${items.length - checkedIds.size} items)`}
-        </Button>
+        {onConfirm && (
+          <Button
+            isDisabled={items.length === 0 || confirmState.kind === "pending"}
+            onPress={handleConfirm}
+          >
+            {checkedIds.size === items.length
+              ? "All Items In Pantry"
+              : `Confirm List (${items.length - checkedIds.size} items)`}
+          </Button>
+        )}
       </div>
+      <ActionStatus state={confirmState} />
     </div>
   );
 }

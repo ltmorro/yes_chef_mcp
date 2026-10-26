@@ -13,3 +13,5 @@ export type { Page } from "./Sidebar";
 export { TopBar } from "./TopBar";
 export { ViewStatus } from "./ViewStatus";
 export type { ViewStatusProps } from "./ViewStatus";
+export { ActionStatus } from "./ActionStatus";
+export type { ActionStatusProps } from "./ActionStatus";

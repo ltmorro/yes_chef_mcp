@@ -9,6 +9,7 @@ from datetime import date
 import pytest
 from fastmcp import Client
 from fastmcp.client.transports import FastMCPTransport
+from fastmcp.exceptions import ToolError
 from mcp.types import TextResourceContents
 from pydantic import BaseModel
 
@@ -142,14 +143,61 @@ async def test_show_macro_target_setter_payload(sample_member_id: str) -> None:
     assert "Cut" in summary
 
 
-async def test_show_macro_target_setter_without_targets() -> None:
+async def test_show_macro_target_setter_without_targets(sample_member_id: str) -> None:
     async with Client(mcp) as client:
         _, payload = await _call_view(
-            client, "show_macro_target_setter", {"member_id": "nobody"}, MacroSetterDataSchema
+            client,
+            "show_macro_target_setter",
+            {"member_id": sample_member_id},
+            MacroSetterDataSchema,
         )
 
     assert isinstance(payload, MacroSetterDataSchema)
     assert payload.current_targets is None
+    assert payload.member_id == sample_member_id
+    assert payload.target_name == "Custom"
+
+
+async def test_show_macro_target_setter_uses_default_member(sample_member_id: str) -> None:
+    async with Client(mcp) as client:
+        summary, payload = await _call_view(
+            client, "show_macro_target_setter", {}, MacroSetterDataSchema
+        )
+
+    assert isinstance(payload, MacroSetterDataSchema)
+    assert payload.member_id == sample_member_id
+    assert payload.member_name == "Tester"
+    assert "Tester" in summary
+
+
+async def test_show_macro_target_setter_without_default_member_raises(
+    sample_family_id: str,
+) -> None:
+    async with get_db() as db:
+        await db.execute(
+            "INSERT INTO members (id, family_id, name, role, is_default) VALUES (?, ?, ?, ?, ?)",
+            ("member-not-default", sample_family_id, "Sam", "member", 0),
+        )
+    async with Client(mcp) as client:
+        with pytest.raises(ToolError, match="pass a member_id"):
+            await client.call_tool("show_macro_target_setter", {})
+
+
+async def test_show_macro_target_setter_unknown_member_raises() -> None:
+    async with Client(mcp) as client:
+        with pytest.raises(ToolError, match="Member not found: 'nobody'"):
+            await client.call_tool("show_macro_target_setter", {"member_id": "nobody"})
+
+
+async def test_macro_setter_save_tool_is_listed_for_views() -> None:
+    """The macro setter saves via set_macro_target, so it must stay in tools/list
+    under its plain name without an app-excluding visibility."""
+    async with Client(mcp) as client:
+        tools = {t.name: t for t in await client.list_tools()}
+
+    assert "set_macro_target" in tools
+    visibility = ((tools["set_macro_target"].meta or {}).get("ui") or {}).get("visibility")
+    assert visibility is None or "app" in visibility
 
 
 async def test_show_recipe_selector_payload(sample_recipes: list[Recipe]) -> None:
@@ -187,6 +235,8 @@ async def test_show_weekly_calendar_payload(sample_plan_id: str, sample_member_i
         )
 
     assert isinstance(payload, WeeklyCalendarDataSchema)
+    assert payload.plan_id == sample_plan_id
+    assert payload.member_id == sample_member_id
     assert payload.plan_summary.plan_id == sample_plan_id
     assert payload.plan_summary.plan_name == "Test Week"
     assert payload.targets is not None
@@ -206,3 +256,15 @@ async def test_show_grocery_checklist_payload(sample_plan_id: str) -> None:
     names = {item.name.lower() for item in payload.grocery_list.items}
     assert "chicken breast" in names
     assert f"{len(payload.grocery_list.items)} items" in summary
+
+
+async def test_show_weekly_calendar_without_member(sample_plan_id: str) -> None:
+    async with Client(mcp) as client:
+        _, payload = await _call_view(
+            client, "show_weekly_calendar", {"plan_id": sample_plan_id}, WeeklyCalendarDataSchema
+        )
+
+    assert isinstance(payload, WeeklyCalendarDataSchema)
+    assert payload.plan_id == sample_plan_id
+    assert payload.member_id is None
+    assert payload.targets is None

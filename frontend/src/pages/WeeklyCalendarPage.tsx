@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { Button, Card, RecipeCard, ProgressBar } from "../components";
+import { ActionStatus, Button, Card, RecipeCard, ProgressBar } from "../components";
 import type { DaySummary, MacroSummary, RecipeHit, WeeklyCalendarData } from "../types.ts";
 import { fetchPlans, fetchPlanSummary, fetchMacroTargets, fetchRecipesByIds } from "../api.ts";
+import { useAsyncAction } from "../useAsyncAction.ts";
 import styles from "./WeeklyCalendarPage.module.css";
 
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -20,10 +21,17 @@ interface PlanPicker {
   onSelect: (id: string) => void;
 }
 
+/**
+ * Plan actions for the shown plan. Each is omitted (and its button hidden)
+ * when the host can't perform it.
+ */
 export interface WeeklyCalendarActions {
-  optimizeEmptySlots: (planId: string) => void;
-  rebalance: (planId: string) => void;
-  refresh: (planId: string) => void;
+  /** Re-fetch the plan and re-render. */
+  refresh?: () => Promise<void>;
+  /** Ask for proposals to fill the empty slots. */
+  optimizeEmptySlots?: () => Promise<void>;
+  /** Ask for a rebalance for data.member_id (the button is disabled without one). */
+  rebalance?: () => Promise<void>;
 }
 
 /**
@@ -37,7 +45,7 @@ export interface WeeklyCalendarSource {
   data: WeeklyCalendarData | null;
   /** SPA only: choose which plan to show. */
   plans?: PlanPicker;
-  /** MCP host only: plan actions routed through server tools. */
+  /** MCP host only: plan actions routed through the host. */
   actions?: WeeklyCalendarActions;
 }
 
@@ -81,7 +89,13 @@ export function useRestWeeklyCalendarSource(memberId?: string): WeeklyCalendarSo
         const recipes = await fetchRecipesByIds(planRecipeIds(plan_summary)).catch(
           (): RecipeHit[] => [],
         );
-        setData({ plan_summary, targets: null, recipes });
+        setData({
+          plan_id: selectedPlanId,
+          member_id: memberId ?? null,
+          plan_summary,
+          targets: null,
+          recipes,
+        });
       })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
@@ -293,7 +307,7 @@ export function WeeklyCalendarPage({ source }: WeeklyCalendarPageProps) {
   const { loading, data, plans, actions } = source;
   const planSummary = data?.plan_summary ?? null;
   const targets = data?.targets ?? null;
-  const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [actionState, runAction] = useAsyncAction();
 
   const recipeIndex = useMemo(
     () => new Map((data?.recipes ?? []).map((r) => [r.id, r])),
@@ -313,10 +327,15 @@ export function WeeklyCalendarPage({ source }: WeeklyCalendarPageProps) {
 
   const hasEmptySlots = days.some((d) => Object.keys(d.meals).length === 0);
 
-  const runAction = (run: (planId: string) => void, status: string) => {
-    if (!planSummary) return;
-    run(planSummary.plan_id);
-    setActionStatus(status);
+  const busy = actionState.kind === "pending";
+  const hasMember = Boolean(data?.member_id);
+
+  const trigger = (run: (() => Promise<void>) | undefined, pending: string, done: string) => {
+    if (!run) return;
+    runAction(pending, async () => {
+      await run();
+      return done;
+    });
   };
 
   if (loading && !planSummary) {
@@ -362,25 +381,42 @@ export function WeeklyCalendarPage({ source }: WeeklyCalendarPageProps) {
       )}
 
       {actions && planSummary && (
-        <div className={styles.actions}>
-          {hasEmptySlots && (
-            <Button onPress={() => runAction(actions.optimizeEmptySlots, "optimizing")}>
-              Optimize Empty Slots
-            </Button>
+        <>
+          <div className={styles.actions}>
+            {hasEmptySlots && actions.optimizeEmptySlots && (
+              <Button
+                isDisabled={busy}
+                onPress={() =>
+                  trigger(actions.optimizeEmptySlots, "Sending…", "Asked for proposals to fill the empty slots.")
+                }
+              >
+                Optimize Empty Slots
+              </Button>
+            )}
+            {actions.rebalance && (
+              <Button
+                variant="secondary"
+                isDisabled={busy || !hasMember}
+                onPress={() => trigger(actions.rebalance, "Sending…", "Asked for a rebalanced plan.")}
+              >
+                Rebalance Plan
+              </Button>
+            )}
+            {actions.refresh && (
+              <Button
+                variant="ghost"
+                isDisabled={busy}
+                onPress={() => trigger(actions.refresh, "Refreshing…", "Plan refreshed.")}
+              >
+                Refresh
+              </Button>
+            )}
+          </div>
+          {actions.rebalance && !hasMember && (
+            <div className={styles.hint}>Rebalancing needs a family member to balance for.</div>
           )}
-          <Button variant="secondary" onPress={() => runAction(actions.rebalance, "rebalancing")}>
-            Rebalance Plan
-          </Button>
-          <Button variant="ghost" onPress={() => runAction(actions.refresh, "refreshing")}>
-            Refresh
-          </Button>
-        </div>
-      )}
-
-      {actionStatus && (
-        <div className={styles.status}>
-          Status: {actionStatus}...
-        </div>
+          <ActionStatus state={actionState} />
+        </>
       )}
     </div>
   );

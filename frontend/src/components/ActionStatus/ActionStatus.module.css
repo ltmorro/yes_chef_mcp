@@ -1,0 +1,18 @@
+.status {
+  min-height: 20px;
+  margin-top: var(--space-2);
+  font: var(--text-small);
+  color: var(--color-text-muted);
+}
+
+.pending {
+  color: var(--color-text-muted);
+}
+
+.done {
+  color: var(--color-success);
+}
+
+.error {
+  color: var(--color-danger);
+}

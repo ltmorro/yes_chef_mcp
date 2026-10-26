@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { Button, RecipeCard } from "../components";
+import { ActionStatus, Button, RecipeCard } from "../components";
 import type { RecipeHit, RecipeSelectorData } from "../types.ts";
 import { fetchRecipes } from "../api.ts";
+import { useAsyncAction } from "../useAsyncAction.ts";
 import styles from "./RecipeSelectorPage.module.css";
 
 /* ── Data source ─────────────────────────────────────────────────────── */
@@ -13,8 +14,13 @@ import styles from "./RecipeSelectorPage.module.css";
 export interface RecipeSelectorSource {
   /** null while loading. */
   data: RecipeSelectorData | null;
-  /** Omitted in the SPA, where the details button has no action yet. */
-  onViewDetails?: (recipe: RecipeHit) => void;
+  /** Called when the user selects or clears a recipe (null = cleared). */
+  onSelectionChange?: (recipe: RecipeHit | null) => void;
+  /**
+   * Hand the chosen recipe back. Omitted (and the button hidden) in the SPA,
+   * which has nothing to hand it to, and in hosts that can't send messages.
+   */
+  onConfirm?: (recipe: RecipeHit) => Promise<void>;
 }
 
 /** SPA data source backed by the REST API. */
@@ -73,10 +79,11 @@ interface RecipeSelectorPageProps {
 const NO_RECIPES: RecipeHit[] = [];
 
 export function RecipeSelectorPage({ source }: RecipeSelectorPageProps) {
-  const { data, onViewDetails } = source;
+  const { data, onSelectionChange, onConfirm } = source;
   const recipes = data?.recipes ?? NO_RECIPES;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [confirmState, runConfirm] = useAsyncAction();
 
   const categories = useMemo(() => {
     const cats = new Set(recipes.map((r) => r.category).filter(Boolean) as string[]);
@@ -89,6 +96,21 @@ export function RecipeSelectorPage({ source }: RecipeSelectorPageProps) {
   );
 
   const selectedRecipe = recipes.find((r) => r.id === selectedId);
+
+  const select = (id: string | null) => {
+    if (id === selectedId) return;
+    setSelectedId(id);
+    onSelectionChange?.(recipes.find((r) => r.id === id) ?? null);
+  };
+
+  const confirm = () => {
+    if (!selectedRecipe || !onConfirm) return;
+    const recipe = selectedRecipe;
+    runConfirm("Sending…", async () => {
+      await onConfirm(recipe);
+      return `Sent "${recipe.name}" to the conversation.`;
+    });
+  };
 
   if (!data) {
     return (
@@ -117,7 +139,7 @@ export function RecipeSelectorPage({ source }: RecipeSelectorPageProps) {
             key={recipe.id}
             {...recipe}
             isSelected={selectedId === recipe.id}
-            onSelect={setSelectedId}
+            onSelect={select}
           />
         ))}
       </div>
@@ -131,16 +153,19 @@ export function RecipeSelectorPage({ source }: RecipeSelectorPageProps) {
       )}
 
       <div className={styles.footer}>
-        <Button variant="secondary" onPress={() => setSelectedId(null)}>
+        <Button variant="secondary" onPress={() => select(null)}>
           Clear
         </Button>
-        <Button
-          isDisabled={!selectedRecipe}
-          onPress={selectedRecipe && onViewDetails ? () => onViewDetails(selectedRecipe) : undefined}
-        >
-          View Recipe Details
-        </Button>
+        {onConfirm && (
+          <Button
+            isDisabled={!selectedRecipe || confirmState.kind === "pending"}
+            onPress={confirm}
+          >
+            Use This Recipe
+          </Button>
+        )}
       </div>
+      <ActionStatus state={confirmState} />
     </div>
   );
 }

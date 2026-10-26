@@ -419,6 +419,11 @@ class MacroSetterTargetsSchema(BaseModel):  # type: ignore[explicit-any]
 
 
 class MacroSetterDataSchema(BaseModel):  # type: ignore[explicit-any]
+    # The member whose targets are being edited; the view saves against this id
+    member_id: str
+    member_name: str
+    # Name the view saves new targets under (the active target's, else "Custom")
+    target_name: str
     current_targets: MacroSetterTargetsSchema | None = None
 
 
@@ -427,6 +432,9 @@ class RecipeSelectorDataSchema(BaseModel):  # type: ignore[explicit-any]
 
 
 class WeeklyCalendarDataSchema(BaseModel):  # type: ignore[explicit-any]
+    # Echo the tool args so the view can refresh / ask the model about this plan
+    plan_id: str
+    member_id: str | None = None
     plan_summary: MealPlanSummarySchema
     targets: MacroSummarySchema | None = None
     # Hits for every recipe in the plan, so the view can render names and macros
