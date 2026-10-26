@@ -33,6 +33,43 @@ test("dark host context applies; host-context-changed to light updates it", asyn
   await expect(body(host)).toHaveCSS("color", "rgb(20, 20, 19)");
 });
 
+// A fuller host palette: inverse, info and status pairs as real hosts send them.
+const PALETTE_VARS = {
+  ...HOST_VARS,
+  "--color-background-inverse": "#141413",
+  "--color-text-inverse": "#faf9f5",
+  "--color-text-info": "#2c6bd6",
+  "--color-text-warning": "#a15c07",
+  "--color-text-danger": "#c22f2f",
+  "--color-text-success": "#2f7d32",
+};
+
+test("host style variables drive brand and macro colors too", async ({ page }) => {
+  const host = await openView(page, "macro-setter", {
+    toolResult: macro,
+    hostContext: { theme: "light", styles: { variables: PALETTE_VARS } },
+  });
+  await expect(html(host)).toHaveAttribute("data-host-styles", "");
+  const save = host.view.getByRole("button", { name: "Save Targets" });
+  await expect(save).toHaveCSS("background-color", "rgb(20, 20, 19)");
+  await expect(save).toHaveCSS("color", "rgb(250, 249, 245)");
+  const token = (name: string) =>
+    html(host).evaluate((el, n) => getComputedStyle(el).getPropertyValue(n).trim(), name);
+  expect(await token("--color-protein")).toBe("#2c6bd6");
+  expect(await token("--color-carbs")).toBe("#a15c07");
+  expect(await token("--color-fat")).toBe("#c22f2f");
+  expect(await token("--color-calories")).toBe("#2f7d32");
+});
+
+test("a host sending only a theme keeps our palette", async ({ page }) => {
+  const host = await openView(page, "macro-setter", { toolResult: macro });
+  await expect(host.view.getByRole("button", { name: "Save Targets" })).toHaveCSS(
+    "background-color",
+    "rgb(0, 155, 141)",
+  );
+  await expect(html(host)).not.toHaveAttribute("data-host-styles", /.*/);
+});
+
 test.describe("fullscreen toggle", () => {
   test("hidden when the host doesn't offer fullscreen", async ({ page }) => {
     const host = await openView(page, "weekly-calendar", {

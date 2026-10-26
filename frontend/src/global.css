@@ -8,8 +8,9 @@
  *
  * Our semantic tokens read those host variables first and fall back to our
  * own palette, so the SPA (no host, no variables) looks exactly as before and
- * views blend into whatever host renders them. Brand, accent and macro
- * data-viz colors are ours alone: they carry meaning and stay recognisable.
+ * views blend into whatever host renders them. The spec has no accent or
+ * chart colors, so brand and macro colors switch to host colors only when the
+ * host actually sends style variables (see "Host palette" below).
  *
  * Two host names match ours and simply override them when set:
  * --font-mono and --color-text-inverse.
@@ -62,6 +63,7 @@
   --color-primary:      var(--palette-teal);
   --color-primary-hover: #007A70;
   --color-primary-bg:   rgba(0, 155, 141, 0.12);
+  --color-selection:    var(--color-primary);
 
   /* ── Colors — Semantic ─────────────────────────────────────────────── */
   /* Each text/bg pair comes from the host together or not at all in practice,
@@ -162,6 +164,38 @@
   --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --elevation-2: 0 2px 8px rgba(0, 0, 0, 0.35);
   --elevation-3: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Host palette ─────────────────────────────────────────────────────── */
+/* bridge.ts sets data-host-styles when the host sends style variables. Inside
+   such a host every color is the host's: the brand becomes the host's neutral
+   inverse pair (buttons), selection uses its ring and info colors, and each
+   macro takes a host status hue. Each var() keeps a fallback in case the host
+   omits one. Without host variables (the SPA, or a host sending only a theme)
+   this block doesn't apply and our palette stays. */
+
+:root[data-host-styles] {
+  /* Brand */
+  --color-primary:       var(--color-background-inverse, var(--palette-teal));
+  --color-primary-hover: color-mix(in srgb, var(--color-primary) 85%, var(--color-bg));
+  --color-primary-bg:    var(--color-background-info, var(--color-surface-hover));
+  --color-selection:     var(--color-ring-primary, var(--color-primary));
+
+  /* Macro data viz → host status hues */
+  --color-protein:     var(--color-text-info, var(--palette-teal));
+  --color-protein-bg:  var(--color-background-info, rgba(0, 155, 141, 0.1));
+  --color-carbs:       var(--color-text-warning, var(--palette-mustard));
+  --color-carbs-bg:    var(--color-background-warning, rgba(214, 162, 30, 0.12));
+  --color-fat:         var(--color-text-danger, var(--palette-terracotta));
+  --color-fat-bg:      var(--color-background-danger, rgba(200, 90, 58, 0.1));
+  --color-calories:    var(--color-text-success, var(--palette-olive));
+  --color-calories-bg: var(--color-background-success, rgba(90, 107, 45, 0.1));
+
+  /* Meal-type tints, matching the macro hues above */
+  --color-chip-breakfast: var(--color-background-warning, rgba(214, 162, 30, 0.07));
+  --color-chip-lunch:     var(--color-background-info, rgba(0, 155, 141, 0.07));
+  --color-chip-dinner:    var(--color-background-danger, rgba(200, 90, 58, 0.07));
+  --color-chip-snack:     var(--color-background-secondary, rgba(45, 58, 46, 0.05));
 }
 
 /* ── Reset ────────────────────────────────────────────────────────────── */

@@ -98,6 +98,19 @@ function useSafeAreaInsets(insets: McpUiHostContext["safeAreaInsets"]): void {
 }
 
 /**
+ * Mark <html> with data-host-styles while the host supplies style variables,
+ * so global.css can switch brand and macro colors to host colors too.
+ */
+function useHostPaletteFlag(
+  variables: NonNullable<McpUiHostContext["styles"]>["variables"],
+): void {
+  const hasVariables = Object.keys(variables ?? {}).length > 0;
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-host-styles", hasVariables);
+  }, [hasVariables]);
+}
+
+/**
  * Create and connect an ext-apps `App`, track the latest tool result, and
  * apply the host context.
  *
@@ -158,6 +171,7 @@ export function useMcpView<T>(
 
   // Theme (data-theme + color-scheme), style variables and fonts, now and on change.
   useHostStyles(app, hostContext);
+  useHostPaletteFlag(hostContext?.styles?.variables);
   useSafeAreaInsets(hostContext?.safeAreaInsets);
 
   const isFullscreen = hostContext?.displayMode === "fullscreen";
