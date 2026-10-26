@@ -602,8 +602,10 @@ async def rebalance_plan(
 # Hosts that support the MCP Apps extension display the HTML in a sandboxed
 # iframe; the ext-apps SDK wires tool results into the React app.
 
+# Views are single-file bundles (JS/CSS inlined), so the only external origins
+# left are Google Fonts (stylesheet + font files).
 _VIEW_CSP = ResourceCSP(
-    resource_domains=["https://unpkg.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
+    resource_domains=["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
 )
 
 
@@ -756,8 +758,8 @@ async def show_grocery_checklist(
 
 # ── UI Resources (MCP Apps) ─────────────────────────────────────────────
 
-# Each resource serves the built HTML from the Vite dist/ directory.
-# The HTML loads bundled JS/CSS that renders the React app.
+# Each resource serves a single-file HTML bundle from frontend/dist/views/
+# as-is: all JS and CSS are inlined, so nothing loads from this server.
 
 
 @mcp.resource(
@@ -766,9 +768,9 @@ async def show_grocery_checklist(
 )
 def macro_setter_resource() -> str:
     """Interactive macro target editor UI."""
-    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
+    from yes_chef_mcp.api.views import read_view_html
 
-    return prepare_html(DIST_DIR / "macro-setter.html")
+    return read_view_html("macro-setter")
 
 
 @mcp.resource(
@@ -777,9 +779,9 @@ def macro_setter_resource() -> str:
 )
 def recipe_selector_resource() -> str:
     """Recipe browser with card grid UI."""
-    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
+    from yes_chef_mcp.api.views import read_view_html
 
-    return prepare_html(DIST_DIR / "recipe-selector.html")
+    return read_view_html("recipe-selector")
 
 
 @mcp.resource(
@@ -788,9 +790,9 @@ def recipe_selector_resource() -> str:
 )
 def weekly_calendar_resource() -> str:
     """Weekly meal plan calendar UI."""
-    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
+    from yes_chef_mcp.api.views import read_view_html
 
-    return prepare_html(DIST_DIR / "weekly-calendar.html")
+    return read_view_html("weekly-calendar")
 
 
 @mcp.resource(
@@ -799,7 +801,7 @@ def weekly_calendar_resource() -> str:
 )
 def grocery_list_resource() -> str:
     """Grocery checklist UI."""
-    from yes_chef_mcp.api.views import DIST_DIR, prepare_html
+    from yes_chef_mcp.api.views import read_view_html
 
-    return prepare_html(DIST_DIR / "grocery-list.html")
+    return read_view_html("grocery-list")
 

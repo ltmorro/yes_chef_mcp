@@ -20,29 +20,32 @@ from yes_chef_mcp.mcp.server import (
     search_recipes_by_query,
 )
 
-# Vite build output lives in frontend/dist/ at the repo root (sibling of backend/)
+# Vite build output lives in frontend/dist/ at the repo root (sibling of backend/).
+# The SPA (app.html + assets/) is a normal multi-asset build served from
+# /views/static/. Each MCP Apps view is a single self-contained HTML file in
+# dist/views/ with all JS and CSS inlined, so MCP hosts can render it without
+# reaching back to this server.
 DIST_DIR = Path(__file__).parents[3] / "frontend" / "dist"
-
-# In development, we might be viewed through a proxy (like MCP Inspector)
-# on a different port. This base URL ensures assets still load from FastAPI.
-BASE_URL = "http://localhost:8000/"
+VIEWS_DIR = DIST_DIR / "views"
 
 router = APIRouter(tags=["views"])
 
 
-def prepare_html(html_path: Path, data: dict[str, object] | None = None) -> str:
-    """Read HTML, inject JSON data, and rewrite asset paths to absolute URLs."""
+def read_view_html(name: str) -> str:
+    """Return a built single-file view's HTML as-is, or a placeholder if not built."""
+    html_path = VIEWS_DIR / f"{name}.html"
     if not html_path.exists():
-        return f"<html><body><h1>View not found: {html_path.name}</h1><p>Path: {html_path}</p></body></html>"
+        return (
+            f"<html><body><h1>View not found: {html_path.name}</h1>"
+            f"<p>Run <code>npm run build</code> in frontend/.</p></body></html>"
+        )
+    return html_path.read_text()
 
-    html = html_path.read_text()
 
-    # 1. Rewrite relative asset paths to absolute FastAPI URLs
-    # This is more robust than <base> in some sandboxed environments (like MCP clients)
-    html = html.replace('src="/views/static/', f'src="{BASE_URL}views/static/')
-    html = html.replace('href="/views/static/', f'href="{BASE_URL}views/static/')
+def prepare_html(name: str, data: dict[str, object] | None = None) -> str:
+    """Read a single-file view and inject JSON data into its view-data script tag."""
+    html = read_view_html(name)
 
-    # 2. Inject data if provided
     if data is not None:
         data_json = json.dumps(data, default=str)
         html = html.replace(
@@ -69,7 +72,7 @@ async def macro_setter_view(member_id: str | None = None) -> HTMLResponse:
             "name": active.name,
         }
 
-    html = prepare_html(DIST_DIR / "macro-setter.html", data)
+    html = prepare_html("macro-setter", data)
     return HTMLResponse(content=html)
 
 
@@ -108,7 +111,7 @@ async def recipe_selector_view(
         for hit in result.hits
     ]
 
-    html = prepare_html(DIST_DIR / "recipe-selector.html", {"recipes": recipes})
+    html = prepare_html("recipe-selector", {"recipes": recipes})
     return HTMLResponse(content=html)
 
 
@@ -136,7 +139,7 @@ async def weekly_calendar_view(
     if targets:
         data["targets"] = targets
 
-    html = prepare_html(DIST_DIR / "weekly-calendar.html", data)
+    html = prepare_html("weekly-calendar", data)
     return HTMLResponse(content=html)
 
 
@@ -150,7 +153,7 @@ async def grocery_list_view(
     grocery = await generate_grocery_list(plan_id, merge_similar, exclude_pantry)
 
     data: dict[str, object] = {"grocery_list": grocery.model_dump()}
-    html = prepare_html(DIST_DIR / "grocery-list.html", data)
+    html = prepare_html("grocery-list", data)
     return HTMLResponse(content=html)
 
 

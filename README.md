@@ -121,7 +121,8 @@ frontend/                 # React/Vite source for interactive UI components
 │   ├── bridge.ts         # API communication
 │   ├── theme.ts          # Design token exports
 │   └── types.ts          # Shared TypeScript types
-└── dist/                 # Vite build output (served by FastAPI)
+└── dist/                 # Vite build output: SPA (served by FastAPI at /views/static/)
+    └── views/            # Single-file MCP Apps views (JS/CSS inlined), served as ui:// resources
 ```
 
 ### Key Design Choices

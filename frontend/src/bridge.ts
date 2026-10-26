@@ -1,31 +1,19 @@
 /**
  * MCP Apps bridge: communication between view components and the MCP host.
  *
- * Uses the official @modelcontextprotocol/ext-apps SDK when running inside
- * an MCP host iframe. Falls back to reading <script id="view-data"> and
- * dispatching DOM events for standalone FastAPI usage.
+ * Uses the official @modelcontextprotocol/ext-apps SDK (bundled into each
+ * single-file view) when running inside an MCP host iframe. Falls back to
+ * reading <script id="view-data"> and dispatching DOM events for standalone
+ * FastAPI usage.
  */
 
-// Re-export the App type for consumers that need it directly
-export type { McpApp };
+import { App } from "@modelcontextprotocol/ext-apps";
+import type { CallToolResult } from "@modelcontextprotocol/client";
 
-interface TextContent {
-  type: "text";
-  text: string;
-}
-
-interface ToolResultPayload {
-  content?: Array<TextContent | { type: string }>;
-}
-
-interface McpApp {
-  ontoolresult: ((result: ToolResultPayload) => void) | null;
-  callServerTool: (params: { name: string; arguments: Record<string, unknown> }) => Promise<unknown>;
-  connect: () => Promise<void>;
-}
+export type { App as McpApp };
 
 /** Singleton app instance — lazily initialized by connectApp(). */
-let appInstance: McpApp | null = null;
+let appInstance: App | null = null;
 
 /**
  * Connect to the MCP host via the ext-apps SDK.
@@ -33,20 +21,14 @@ let appInstance: McpApp | null = null;
  * In MCP context: establishes postMessage channel with the host iframe.
  * In standalone FastAPI mode: returns null (use getViewData() instead).
  */
-export async function connectApp(name: string): Promise<McpApp | null> {
+export async function connectApp(name: string): Promise<App | null> {
   if (appInstance) return appInstance;
 
   try {
-    // Dynamic import — the SDK is loaded from CDN in the HTML entry points.
-    // This will fail gracefully in standalone FastAPI mode.
-    const mod = await import(
-      // @ts-expect-error CDN import, not in node_modules
-      "https://unpkg.com/@modelcontextprotocol/ext-apps@0.4.0/app-with-deps"
-    );
-    const App = mod.App as new (opts: { name: string; version: string }) => McpApp;
-    appInstance = new App({ name, version: "0.1.0" });
-    await appInstance.connect();
-    return appInstance;
+    const app = new App({ name, version: "0.1.0" });
+    await app.connect();
+    appInstance = app;
+    return app;
   } catch {
     // Not running inside an MCP host — standalone mode
     return null;
@@ -95,7 +77,9 @@ export function getViewData<T>(): T {
 /**
  * Extract text content from an MCP tool result payload.
  */
-export function extractText(result: ToolResultPayload): string | null {
-  const text = result.content?.find((c): c is TextContent => c.type === "text");
-  return text?.text ?? null;
+export function extractText(result: Pick<CallToolResult, "content">): string | null {
+  for (const block of result.content ?? []) {
+    if (block.type === "text") return block.text;
+  }
+  return null;
 }
