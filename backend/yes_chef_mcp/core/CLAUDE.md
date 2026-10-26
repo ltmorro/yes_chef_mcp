@@ -22,7 +22,7 @@ Domain logic layer. No HTTP or MCP concerns leak in here.
 
 ## Optimization
 
-- `optimizer.py` — tiered: MILP (python-mip/CBC) → greedy + simulated annealing → scipy continuous relaxation
+- `optimizer.py` — greedy heuristic (meals/plans) + scipy continuous optimization (serving sizes). MILP via python-mip is planned, not implemented. Returns proposals only; never writes to the DB.
 - `constraint_relaxer.py` — progressive cascade that widens tolerances until a solution is found. Never returns infeasible.
 - Relaxation order: allow repeats → widen macros → drop prep time → drop tags → widen servings → drop categories → heuristic
 
@@ -31,4 +31,5 @@ Domain logic layer. No HTTP or MCP concerns leak in here.
 - `recipe_store.py` — recipe CRUD, nutrition storage, FTS/embedding indexing
 - `meal_composer.py` — assemble meals from recipes, compute per-member deviations, suggest complements
 - `planner.py` — meal plan CRUD (create, slot assignment, listing)
+- `members.py` — family members and macro targets (list, create target)
 - `grocery.py` — aggregate ingredients into categorized shopping lists

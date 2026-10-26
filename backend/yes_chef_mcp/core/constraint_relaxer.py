@@ -1,6 +1,6 @@
 """Constraint relaxation cascade for the optimizer.
 
-When the MILP solver returns infeasible, soft constraints are dropped
+When the solver finds no acceptable solution, soft constraints are dropped
 in priority order until a solution is found. The solver never surfaces
 an infeasible result — it degrades gracefully.
 """
