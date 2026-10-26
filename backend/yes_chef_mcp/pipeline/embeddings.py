@@ -25,7 +25,7 @@ _load_failed_at: float | None = None
 _load_lock = threading.Lock()
 
 
-class EmbeddingModelUnavailable(OSError):
+class EmbeddingModelUnavailableError(OSError):
     """The model isn't cached and couldn't be loaded (e.g. offline)."""
 
 
@@ -33,7 +33,7 @@ def _get_model() -> object:
     """Lazy-load the sentence-transformers model.
 
     Thread-safe: concurrent first calls wait for one load. After a failed load,
-    raises EmbeddingModelUnavailable straight away until RETRY_AFTER_SECONDS
+    raises EmbeddingModelUnavailableError straight away until RETRY_AFTER_SECONDS
     have passed.
     """
     global _model, _load_failed_at
@@ -44,7 +44,7 @@ def _get_model() -> object:
             _load_failed_at is not None
             and time.monotonic() - _load_failed_at < RETRY_AFTER_SECONDS
         ):
-            raise EmbeddingModelUnavailable("embedding model failed to load recently")
+            raise EmbeddingModelUnavailableError("embedding model failed to load recently")
 
         from sentence_transformers import SentenceTransformer
 
@@ -52,7 +52,7 @@ def _get_model() -> object:
             _model = SentenceTransformer("all-MiniLM-L6-v2")
         except OSError as exc:
             _load_failed_at = time.monotonic()
-            raise EmbeddingModelUnavailable(f"embedding model failed to load: {exc}") from exc
+            raise EmbeddingModelUnavailableError(f"embedding model failed to load: {exc}") from exc
         _load_failed_at = None
         logger.info("Loaded sentence-transformers model: all-MiniLM-L6-v2")
         return _model

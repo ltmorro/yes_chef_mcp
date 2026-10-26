@@ -32,7 +32,7 @@ def _offline_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_failed_load_is_not_retried_on_every_call() -> None:
     for _ in range(3):
-        with pytest.raises(embeddings.EmbeddingModelUnavailable):
+        with pytest.raises(embeddings.EmbeddingModelUnavailableError):
             embeddings.generate_query_embedding("chicken")
 
     assert _OfflineModel.attempts == 1
@@ -42,7 +42,7 @@ def test_failed_load_is_retried_after_cooldown(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(embeddings, "RETRY_AFTER_SECONDS", 0.0)
 
     for _ in range(2):
-        with pytest.raises(embeddings.EmbeddingModelUnavailable):
+        with pytest.raises(embeddings.EmbeddingModelUnavailableError):
             embeddings.generate_query_embedding("chicken")
 
     assert _OfflineModel.attempts == 2
@@ -50,4 +50,4 @@ def test_failed_load_is_retried_after_cooldown(monkeypatch: pytest.MonkeyPatch) 
 
 def test_unavailable_model_is_an_oserror() -> None:
     # Callers that already fall back on OSError keep working.
-    assert issubclass(embeddings.EmbeddingModelUnavailable, OSError)
+    assert issubclass(embeddings.EmbeddingModelUnavailableError, OSError)
