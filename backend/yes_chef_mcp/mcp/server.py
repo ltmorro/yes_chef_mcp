@@ -6,6 +6,7 @@ can call. Each tool delegates to the core library for actual logic.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date
 
@@ -126,7 +127,8 @@ async def search_recipes_by_query(
     try:
         from yes_chef_mcp.pipeline.embeddings import generate_query_embedding
 
-        embedding = generate_query_embedding(query)
+        # Model loading and encoding are blocking; keep them off the event loop.
+        embedding = await asyncio.to_thread(generate_query_embedding, query)
     except ImportError:
         pass  # sentence-transformers not available — FTS-only
     except OSError as exc:

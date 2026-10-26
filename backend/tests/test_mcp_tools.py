@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from collections.abc import AsyncIterator
 
 import pytest
@@ -17,7 +19,7 @@ from yes_chef_mcp.core.models import (
     Recipe,
     RecipeCategory,
 )
-from yes_chef_mcp.mcp.server import mcp
+from yes_chef_mcp.mcp.server import mcp, search_recipes_by_query
 
 WRITE_TOOLS = {"create_meal_plan", "add_to_meal_plan", "set_macro_target"}
 READ_TOOLS = {
@@ -187,6 +189,37 @@ async def test_search_recipes_by_query_falls_back_when_model_download_fails(
     assert isinstance(hits, list)
     assert [h["id"] for h in hits] == ["recipe-chicken"]
     assert "falling back to keyword search" in caplog.text
+
+
+async def test_slow_query_embedding_does_not_block_the_event_loop(
+    sample_recipes: list[Recipe],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A slow model load runs in a worker thread, so other requests keep being served."""
+
+    def _slow(query: str) -> list[float]:
+        time.sleep(0.5)
+        raise OSError("offline")
+
+    monkeypatch.setattr("yes_chef_mcp.pipeline.embeddings.generate_query_embedding", _slow)
+
+    ticks = 0
+
+    async def _ticker() -> None:
+        nonlocal ticks
+        for _ in range(10):
+            await asyncio.sleep(0.02)
+            ticks += 1
+
+    async def _search() -> tuple[list[str], int]:
+        page = await search_recipes_by_query("chicken")
+        return [h.id for h in page.hits], ticks
+
+    (hit_ids, ticks_when_done), _ = await asyncio.gather(_search(), _ticker())
+
+    # The ticker needs ~0.2s; it only finishes during the 0.5s load if the loop is free.
+    assert ticks_when_done == 10
+    assert hit_ids == ["recipe-chicken"]
 
 
 async def test_get_recipe_detail(

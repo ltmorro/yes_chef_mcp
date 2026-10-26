@@ -7,24 +7,55 @@ The model runs locally — no external API calls.
 from __future__ import annotations
 
 import logging
+import threading
+import time
 
 from yes_chef_mcp.core.models import Recipe
 
 logger = logging.getLogger(__name__)
 
+# How long to wait after a failed model load before trying again. Loading
+# retries the download several times, which takes tens of seconds offline,
+# so we don't want to pay that on every query.
+RETRY_AFTER_SECONDS = 600.0
+
 # Lazy-loaded model instance
 _model: object | None = None
+_load_failed_at: float | None = None
+_load_lock = threading.Lock()
+
+
+class EmbeddingModelUnavailable(OSError):
+    """The model isn't cached and couldn't be loaded (e.g. offline)."""
 
 
 def _get_model() -> object:
-    """Lazy-load the sentence-transformers model."""
-    global _model
-    if _model is None:
+    """Lazy-load the sentence-transformers model.
+
+    Thread-safe: concurrent first calls wait for one load. After a failed load,
+    raises EmbeddingModelUnavailable straight away until RETRY_AFTER_SECONDS
+    have passed.
+    """
+    global _model, _load_failed_at
+    with _load_lock:
+        if _model is not None:
+            return _model
+        if (
+            _load_failed_at is not None
+            and time.monotonic() - _load_failed_at < RETRY_AFTER_SECONDS
+        ):
+            raise EmbeddingModelUnavailable("embedding model failed to load recently")
+
         from sentence_transformers import SentenceTransformer
 
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
+        try:
+            _model = SentenceTransformer("all-MiniLM-L6-v2")
+        except OSError as exc:
+            _load_failed_at = time.monotonic()
+            raise EmbeddingModelUnavailable(f"embedding model failed to load: {exc}") from exc
+        _load_failed_at = None
         logger.info("Loaded sentence-transformers model: all-MiniLM-L6-v2")
-    return _model
+        return _model
 
 
 def build_recipe_text(recipe: Recipe) -> str:
