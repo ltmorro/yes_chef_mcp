@@ -1,16 +1,81 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Checkbox } from "react-aria-components";
 import { Button, Card } from "../components";
-import type { GroceryItem } from "../types.ts";
+import type { GroceryItem, GroceryListData } from "../types.ts";
 import { fetchPlans, fetchGroceryList } from "../api.ts";
 import styles from "./GroceryListPage.module.css";
 
-/* ── Plan Selector ───────────────────────────────────────────────────── */
+/* ── Data source ─────────────────────────────────────────────────────── */
 
 interface PlanOption {
   id: string;
   name: string;
 }
+
+interface PlanPicker {
+  options: PlanOption[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}
+
+export interface GroceryConfirmation {
+  items: GroceryItem[];
+  checked_off_count: number;
+  total_count: number;
+}
+
+/**
+ * Where the page gets its data and sends its actions. In an MCP host the
+ * data is the show_grocery_checklist tool result for one plan; in the SPA it
+ * is REST, with a picker over all plans.
+ */
+export interface GroceryListSource {
+  loading: boolean;
+  /** null when not loaded yet, or when there is no plan to show. */
+  data: GroceryListData | null;
+  /** SPA only: choose which plan's list to show. */
+  plans?: PlanPicker;
+  /** Omitted in the SPA, where the confirm button has no action yet. */
+  onConfirm?: (confirmation: GroceryConfirmation) => void;
+}
+
+/** SPA data source backed by the REST API. */
+export function useRestGroceryListSource(): GroceryListSource {
+  const [plans, setPlans] = useState<PlanOption[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [data, setData] = useState<GroceryListData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPlans()
+      .then((result) => {
+        const options = result.map((p) => ({ id: p.id, name: p.name }));
+        setPlans(options);
+        if (options.length > 0) {
+          setSelectedPlanId(options[0]!.id);
+        }
+      })
+      .catch(() => { /* API unavailable */ })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPlanId) return;
+    setLoading(true);
+    fetchGroceryList(selectedPlanId)
+      .then((grocery_list) => setData({ grocery_list }))
+      .catch(() => setData({ grocery_list: { plan_id: selectedPlanId, items: [] } }))
+      .finally(() => setLoading(false));
+  }, [selectedPlanId]);
+
+  return {
+    loading,
+    data,
+    plans: { options: plans, selectedId: selectedPlanId, onSelect: setSelectedPlanId },
+  };
+}
+
+/* ── Plan Selector ───────────────────────────────────────────────────── */
 
 function PlanSelector({
   plans,
@@ -132,7 +197,7 @@ function SummaryBar({ total, checked }: { total: number; checked: number }) {
       }
       trailingMedia={
         <div className={`${styles.summaryCount} ${remaining === 0 ? styles.summaryCountDone : ""}`}>
-          {remaining === 0 ? "\u2713" : remaining}
+          {remaining === 0 ? "✓" : remaining}
         </div>
       }
     />
@@ -150,35 +215,21 @@ interface CategoryGroup {
   items: IndexedItem[];
 }
 
-export function GroceryListPage() {
-  const [plans, setPlans] = useState<PlanOption[]>([]);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [items, setItems] = useState<GroceryItem[]>([]);
+interface GroceryListPageProps {
+  source: GroceryListSource;
+}
+
+const NO_ITEMS: GroceryItem[] = [];
+
+export function GroceryListPage({ source }: GroceryListPageProps) {
+  const { loading, data, plans, onConfirm } = source;
+  const items = data?.grocery_list.items ?? NO_ITEMS;
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState(true);
 
+  // A new list (another plan, or a new tool result) starts fully unchecked
   useEffect(() => {
-    fetchPlans()
-      .then((result) => {
-        const options = result.map((p) => ({ id: p.id, name: p.name }));
-        setPlans(options);
-        if (options.length > 0) {
-          setSelectedPlanId(options[0]!.id);
-        }
-      })
-      .catch(() => { /* API unavailable */ })
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (!selectedPlanId) return;
-    setLoading(true);
     setCheckedIds(new Set());
-    fetchGroceryList(selectedPlanId)
-      .then((result) => setItems(result.items))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, [selectedPlanId]);
+  }, [data]);
 
   const toggle = useCallback((idx: number) => {
     setCheckedIds((prev) => {
@@ -217,6 +268,14 @@ export function GroceryListPage() {
     return sorted.map((cat) => ({ category: cat, items: groups[cat]! }));
   }, [items]);
 
+  const handleConfirm = useCallback(() => {
+    onConfirm?.({
+      items: items.filter((_, idx) => !checkedIds.has(idx)),
+      checked_off_count: checkedIds.size,
+      total_count: items.length,
+    });
+  }, [onConfirm, items, checkedIds]);
+
   if (loading && items.length === 0) {
     return (
       <div>
@@ -225,7 +284,7 @@ export function GroceryListPage() {
     );
   }
 
-  if (plans.length === 0) {
+  if (!data) {
     return (
       <div>
         <div className="view-header">
@@ -243,7 +302,9 @@ export function GroceryListPage() {
         <p>Check off items you already have. Unchecked items will be your shopping list.</p>
       </div>
 
-      <PlanSelector plans={plans} selectedId={selectedPlanId} onSelect={setSelectedPlanId} />
+      {plans && (
+        <PlanSelector plans={plans.options} selectedId={plans.selectedId} onSelect={plans.onSelect} />
+      )}
 
       <SummaryBar total={items.length} checked={checkedIds.size} />
 
@@ -281,7 +342,10 @@ export function GroceryListPage() {
         <Button variant="ghost" onPress={() => setCheckedIds(new Set())}>
           Uncheck All
         </Button>
-        <Button isDisabled={items.length === 0}>
+        <Button
+          isDisabled={items.length === 0}
+          onPress={onConfirm ? handleConfirm : undefined}
+        >
           {checkedIds.size === items.length
             ? "All Items In Pantry"
             : `Confirm List (${items.length - checkedIds.size} items)`}

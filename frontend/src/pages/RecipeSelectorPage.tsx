@@ -1,8 +1,34 @@
 import { useState, useMemo, useEffect } from "react";
 import { Button, RecipeCard } from "../components";
-import type { RecipeHit } from "../types.ts";
+import type { RecipeHit, RecipeSelectorData } from "../types.ts";
 import { fetchRecipes } from "../api.ts";
 import styles from "./RecipeSelectorPage.module.css";
+
+/* ── Data source ─────────────────────────────────────────────────────── */
+
+/**
+ * Where the page gets its data and sends its actions. In an MCP host the
+ * data is the show_recipe_selector tool result; in the SPA it is REST.
+ */
+export interface RecipeSelectorSource {
+  /** null while loading. */
+  data: RecipeSelectorData | null;
+  /** Omitted in the SPA, where the details button has no action yet. */
+  onViewDetails?: (recipe: RecipeHit) => void;
+}
+
+/** SPA data source backed by the REST API. */
+export function useRestRecipeSelectorSource(): RecipeSelectorSource {
+  const [data, setData] = useState<RecipeSelectorData | null>(null);
+
+  useEffect(() => {
+    fetchRecipes()
+      .then((recipes) => setData({ recipes }))
+      .catch(() => setData({ recipes: [] })); // API unavailable
+  }, []);
+
+  return { data };
+}
 
 /* ── Filter Bar ───────────────────────────────────────────────────────── */
 
@@ -40,18 +66,17 @@ function FilterBar({
 
 /* ── Page Component ──────────────────────────────────────────────────── */
 
-export function RecipeSelectorPage() {
-  const [recipes, setRecipes] = useState<RecipeHit[]>([]);
+interface RecipeSelectorPageProps {
+  source: RecipeSelectorSource;
+}
+
+const NO_RECIPES: RecipeHit[] = [];
+
+export function RecipeSelectorPage({ source }: RecipeSelectorPageProps) {
+  const { data, onViewDetails } = source;
+  const recipes = data?.recipes ?? NO_RECIPES;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchRecipes()
-      .then(setRecipes)
-      .catch(() => { /* API unavailable */ })
-      .finally(() => setLoading(false));
-  }, []);
 
   const categories = useMemo(() => {
     const cats = new Set(recipes.map((r) => r.category).filter(Boolean) as string[]);
@@ -63,7 +88,9 @@ export function RecipeSelectorPage() {
     [recipes, categoryFilter],
   );
 
-  if (loading) {
+  const selectedRecipe = recipes.find((r) => r.id === selectedId);
+
+  if (!data) {
     return (
       <div>
         <div className={styles.loading}>Loading recipes...</div>
@@ -107,7 +134,10 @@ export function RecipeSelectorPage() {
         <Button variant="secondary" onPress={() => setSelectedId(null)}>
           Clear
         </Button>
-        <Button isDisabled={!selectedId}>
+        <Button
+          isDisabled={!selectedRecipe}
+          onPress={selectedRecipe && onViewDetails ? () => onViewDetails(selectedRecipe) : undefined}
+        >
           View Recipe Details
         </Button>
       </div>

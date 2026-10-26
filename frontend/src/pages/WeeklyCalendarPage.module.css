@@ -98,3 +98,18 @@
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-3);
 }
+
+/* ── Actions (MCP host only) ─────────────────────────────────────────── */
+
+.actions {
+  margin-top: var(--space-4);
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.status {
+  margin-top: var(--space-3);
+  font: var(--text-small);
+  color: var(--color-primary);
+}

@@ -1,0 +1,9 @@
+.info {
+  color: var(--color-text-muted);
+}
+
+.error {
+  background: var(--color-danger-bg);
+  box-shadow: inset 4px 0 0 var(--color-danger);
+  color: var(--color-danger);
+}

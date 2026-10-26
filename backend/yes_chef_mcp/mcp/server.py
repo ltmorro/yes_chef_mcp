@@ -11,6 +11,7 @@ from datetime import date
 
 from fastmcp import FastMCP
 from fastmcp.apps import AppConfig, ResourceCSP
+from fastmcp.tools import ToolResult
 
 from yes_chef_mcp.core.db import get_db
 from yes_chef_mcp.core.grocery import generate_grocery_list as _generate_grocery
@@ -49,7 +50,10 @@ from yes_chef_mcp.core.recipe_store import (
 )
 from yes_chef_mcp.core.schemas import (
     ComplementSuggestionSchema,
+    GroceryListDataSchema,
     GroceryListSchema,
+    MacroSetterDataSchema,
+    MacroSetterTargetsSchema,
     MacroSummarySchema,
     MacroTargetSchema,
     MealComponentSchema,
@@ -63,9 +67,12 @@ from yes_chef_mcp.core.schemas import (
     OptimizedPlanSchema,
     RebalancedPlanSchema,
     RecipeDetailSchema,
+    RecipeSearchHitSchema,
     RecipeSearchPageSchema,
+    RecipeSelectorDataSchema,
+    WeeklyCalendarDataSchema,
 )
-from yes_chef_mcp.core.search import hybrid_search, macro_distance_search
+from yes_chef_mcp.core.search import hybrid_search, macro_distance_search, search_by_ids
 
 mcp = FastMCP("yes_chef_mcp", instructions="Meal planning with macro optimization")
 
@@ -598,9 +605,10 @@ async def rebalance_plan(
 
 # ── View Tools (MCP Apps Extension) ─────────────────────────────────────
 
-# Each view tool returns JSON data that the linked ui:// resource renders.
-# Hosts that support the MCP Apps extension display the HTML in a sandboxed
-# iframe; the ext-apps SDK wires tool results into the React app.
+# Each view tool returns a ToolResult: a one-line text summary for the model,
+# plus structuredContent (a *DataSchema payload) that the linked ui:// view
+# renders. Hosts that support the MCP Apps extension display the HTML in a
+# sandboxed iframe and push the tool result into it via the ext-apps SDK.
 
 # Views are single-file bundles (JS/CSS inlined), so the only external origins
 # left are Google Fonts (stylesheet + font files).
@@ -611,32 +619,34 @@ _VIEW_CSP = ResourceCSP(
 
 @mcp.tool(
     app=AppConfig(resource_uri="ui://yes_chef_mcp/macro-setter.html"),
+    output_schema=MacroSetterDataSchema.model_json_schema(),
 )
 async def show_macro_target_setter(
     member_id: str | None = None,
-) -> str:
+) -> ToolResult:
     """Show an interactive macro target editor with sliders and pie chart.
 
     The user can adjust protein, carbs, and fat targets and see real-time
     calorie impact. When the user clicks Save, the app calls
     save_macro_targets with the new values.
     """
-    import json
-
     targets = await get_macro_targets(member_id)
     active = next((t for t in targets if t.is_active), None)
 
-    data: dict[str, object] = {}
-    if active:
-        data["current_targets"] = {
-            "protein_g": active.protein_g,
-            "carbs_g": active.carbs_g,
-            "fat_g": active.fat_g,
-            "calories": active.calories,
-            "name": active.name,
-        }
+    data = MacroSetterDataSchema(
+        current_targets=MacroSetterTargetsSchema.model_validate(active) if active else None
+    )
 
-    return json.dumps(data)
+    if active:
+        summary = (
+            f"Showing macro target editor with active target '{active.name}': "
+            f"{active.calories:.0f} kcal, {active.protein_g:.0f}g protein, "
+            f"{active.carbs_g:.0f}g carbs, {active.fat_g:.0f}g fat"
+        )
+    else:
+        summary = "Showing macro target editor (no active target; using defaults)"
+
+    return ToolResult(content=summary, structured_content=data.model_dump(mode="json"))
 
 
 @mcp.tool(
@@ -644,116 +654,105 @@ async def show_macro_target_setter(
         resource_uri="ui://yes_chef_mcp/recipe-selector.html",
         visibility=["model"],
     ),
+    output_schema=RecipeSelectorDataSchema.model_json_schema(),
 )
 async def show_recipe_selector(
     query: str = "",
     category: str | None = None,
     tags: list[str] | None = None,
     max_results: int = 20,
-) -> str:
+) -> ToolResult:
     """Show a visual recipe browser with cards, category filters, and macro badges.
 
     Displays search results in a responsive grid. The user selects a recipe
     and the app calls select_recipe with the chosen recipe_id.
     """
-    import json
-
-    cat = RecipeCategory(category) if category else None
-    embedding: list[float] | None = None
-    try:
-        from yes_chef_mcp.core.models import Recipe
-        from yes_chef_mcp.pipeline.embeddings import generate_embedding
-
-        dummy = Recipe(id="", family_id="", name=query, source="manual")  # type: ignore[arg-type]
-        embedding = generate_embedding(dummy)
-    except ImportError:
-        pass
-
-    result = await hybrid_search(
+    page = await search_recipes_by_query(
         query=query,
-        embedding=embedding,
-        category=cat,
+        category=category,
         tags=tags,
         max_results=max_results,
     )
+    data = RecipeSelectorDataSchema(recipes=page.hits)
 
-    recipes = [
-        {
-            "id": hit.id,
-            "name": hit.name,
-            "category": hit.category,
-            "tags": hit.tags,
-            "prep_minutes": hit.prep_minutes,
-            "cook_minutes": hit.cook_minutes,
-            "macro_summary": {
-                "calories": hit.macro_summary.calories,
-                "protein_g": hit.macro_summary.protein_g,
-                "carbs_g": hit.macro_summary.carbs_g,
-                "fat_g": hit.macro_summary.fat_g,
-            },
-        }
-        for hit in result.hits
-    ]
+    count = len(data.recipes)
+    noun = "recipe" if count == 1 else "recipes"
+    summary = f"Showing {count} {noun} for '{query}'" if query else f"Showing {count} {noun}"
 
-    return json.dumps({"recipes": recipes})
+    return ToolResult(content=summary, structured_content=data.model_dump(mode="json"))
 
 
 @mcp.tool(
     app=AppConfig(resource_uri="ui://yes_chef_mcp/weekly-calendar.html"),
+    output_schema=WeeklyCalendarDataSchema.model_json_schema(),
 )
 async def show_weekly_calendar(
     plan_id: str,
     member_id: str | None = None,
-) -> str:
+) -> ToolResult:
     """Show a 7-day meal plan calendar with macro variance indicators.
 
     Displays all meals per day with color-coded progress bars showing
     proximity to daily macro targets. Includes action buttons for
     optimize, rebalance, and refresh.
     """
-    import json
+    plan_summary = await get_meal_plan_summary(plan_id, member_id, detail_level="full")
 
-    summary = await get_meal_plan_summary(plan_id, member_id, detail_level="full")
-
-    targets: dict[str, object] | None = None
+    targets: MacroSummarySchema | None = None
     if member_id:
         target_list = await get_macro_targets(member_id)
         active = next((t for t in target_list if t.is_active), None)
         if active:
-            targets = {
-                "calories": active.calories,
-                "protein_g": active.protein_g,
-                "carbs_g": active.carbs_g,
-                "fat_g": active.fat_g,
-            }
+            targets = MacroSummarySchema.model_validate(active)
 
-    data: dict[str, object] = {"plan_summary": summary.model_dump()}
-    if targets:
-        data["targets"] = targets
+    recipe_ids = list(
+        dict.fromkeys(
+            component.recipe_id
+            for day in plan_summary.daily_summaries
+            for components in day.meals.values()
+            for component in components
+        )
+    )
+    recipes = await search_by_ids(recipe_ids) if recipe_ids else None
 
-    return json.dumps(data, default=str)
+    data = WeeklyCalendarDataSchema(
+        plan_summary=plan_summary,
+        targets=targets,
+        recipes=[RecipeSearchHitSchema.model_validate(h) for h in recipes.hits] if recipes else [],
+    )
+
+    filled_days = len(plan_summary.daily_summaries)
+    summary = (
+        f"Showing {plan_summary.days}-day calendar for plan '{plan_summary.plan_name}' "
+        f"({filled_days} of {plan_summary.days} days have meals)"
+    )
+
+    return ToolResult(content=summary, structured_content=data.model_dump(mode="json"))
 
 
 @mcp.tool(
     app=AppConfig(resource_uri="ui://yes_chef_mcp/grocery-list.html"),
+    output_schema=GroceryListDataSchema.model_json_schema(),
 )
 async def show_grocery_checklist(
     plan_id: str,
     merge_similar: bool = True,
     exclude_pantry: bool = True,
-) -> str:
+) -> ToolResult:
     """Show an interactive grocery checklist grouped by ingredient category.
 
     Users can check off items they already have in their pantry. When they
     click Confirm, the app calls confirm_grocery_list with only the
     unchecked items they need to buy.
     """
-    import json
+    grocery_list = await generate_grocery_list(plan_id, merge_similar, exclude_pantry)
+    data = GroceryListDataSchema(grocery_list=grocery_list)
 
-    result = await _generate_grocery(plan_id, merge_similar, exclude_pantry)
-    schema = GroceryListSchema.model_validate(result)
+    count = len(grocery_list.items)
+    categories = len({item.category for item in grocery_list.items})
+    summary = f"Showing grocery checklist with {count} items across {categories} categories"
 
-    return json.dumps({"grocery_list": schema.model_dump()}, default=str)
+    return ToolResult(content=summary, structured_content=data.model_dump(mode="json"))
 
 
 # ── UI Resources (MCP Apps) ─────────────────────────────────────────────

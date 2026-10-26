@@ -1,18 +1,131 @@
 import { useState, useMemo, useEffect } from "react";
 import { Button, Card, RecipeCard, ProgressBar } from "../components";
-import type { DaySummary, MacroSummary, PlanSummary, RecipeHit } from "../types.ts";
+import type { DaySummary, MacroSummary, RecipeHit, WeeklyCalendarData } from "../types.ts";
 import { fetchPlans, fetchPlanSummary, fetchMacroTargets, fetchRecipesByIds } from "../api.ts";
 import styles from "./WeeklyCalendarPage.module.css";
 
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MEAL_ORDER = ["breakfast", "lunch", "dinner", "snack"] as const;
 
-/* ── Plan Selector ───────────────────────────────────────────────────── */
+/* ── Data source ─────────────────────────────────────────────────────── */
 
 interface PlanOption {
   id: string;
   name: string;
 }
+
+interface PlanPicker {
+  options: PlanOption[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}
+
+export interface WeeklyCalendarActions {
+  optimizeEmptySlots: (planId: string) => void;
+  rebalance: (planId: string) => void;
+  refresh: (planId: string) => void;
+}
+
+/**
+ * Where the page gets its data and sends its actions. In an MCP host the
+ * data is the show_weekly_calendar tool result for one plan; in the SPA it
+ * is REST, with a picker over all plans.
+ */
+export interface WeeklyCalendarSource {
+  loading: boolean;
+  /** null when not loaded yet, or when there is no plan to show. */
+  data: WeeklyCalendarData | null;
+  /** SPA only: choose which plan to show. */
+  plans?: PlanPicker;
+  /** MCP host only: plan actions routed through server tools. */
+  actions?: WeeklyCalendarActions;
+}
+
+function planRecipeIds(data: WeeklyCalendarData["plan_summary"]): string[] {
+  return [
+    ...new Set(
+      data.daily_summaries.flatMap((day) =>
+        Object.values(day.meals).flatMap((components) => components.map((c) => c.recipe_id)),
+      ),
+    ),
+  ];
+}
+
+/** SPA data source backed by the REST API. */
+export function useRestWeeklyCalendarSource(memberId?: string): WeeklyCalendarSource {
+  const [plans, setPlans] = useState<PlanOption[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [data, setData] = useState<WeeklyCalendarData | null>(null);
+  const [targets, setTargets] = useState<MacroSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPlans()
+      .then((result) => {
+        const options = result.map((p) => ({ id: p.id, name: p.name }));
+        setPlans(options);
+        if (options.length > 0) {
+          setSelectedPlanId(options[0]!.id);
+        }
+      })
+      .catch(() => { /* API unavailable */ })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPlanId) return;
+    // Ignore responses for a plan/member that is no longer selected
+    let stale = false;
+    setLoading(true);
+    fetchPlanSummary(selectedPlanId, memberId)
+      .then((plan_summary) => {
+        if (stale) return;
+        setData({ plan_summary, targets: null, recipes: [] });
+        setLoading(false);
+        // Recipe hits are non-critical enrichment: cards fall back to name-only without them
+        fetchRecipesByIds(planRecipeIds(plan_summary))
+          .then((recipes: RecipeHit[]) => {
+            if (!stale) setData((prev) => (prev ? { ...prev, recipes } : prev));
+          })
+          .catch(() => { /* keep fallback cards */ });
+      })
+      .catch(() => {
+        if (stale) return;
+        setData(null);
+        setLoading(false);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [selectedPlanId, memberId]);
+
+  useEffect(() => {
+    if (!memberId) return;
+    fetchMacroTargets(memberId)
+      .then((tgts) => {
+        const active = tgts.find((t) => t.is_active);
+        if (active) {
+          setTargets({
+            calories: active.calories,
+            protein_g: active.protein_g,
+            carbs_g: active.carbs_g,
+            fat_g: active.fat_g,
+          });
+        }
+      })
+      .catch(() => { /* ignore */ });
+  }, [memberId]);
+
+  const merged = useMemo(() => (data ? { ...data, targets } : null), [data, targets]);
+
+  return {
+    loading,
+    data: merged,
+    plans: { options: plans, selectedId: selectedPlanId, onSelect: setSelectedPlanId },
+  };
+}
+
+/* ── Plan Selector ───────────────────────────────────────────────────── */
 
 function PlanSelector({
   plans,
@@ -185,71 +298,19 @@ function WeeklySummary({
 /* ── Page Component ──────────────────────────────────────────────────── */
 
 interface WeeklyCalendarPageProps {
-  memberId?: string;
+  source: WeeklyCalendarSource;
 }
 
-export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
-  const [plans, setPlans] = useState<PlanOption[]>([]);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [planSummary, setPlanSummary] = useState<PlanSummary | null>(null);
-  const [targets, setTargets] = useState<MacroSummary | null>(null);
-  const [recipeIndex, setRecipeIndex] = useState<Map<string, RecipeHit>>(new Map());
-  const [loading, setLoading] = useState(true);
+export function WeeklyCalendarPage({ source }: WeeklyCalendarPageProps) {
+  const { loading, data, plans, actions } = source;
+  const planSummary = data?.plan_summary ?? null;
+  const targets = data?.targets ?? null;
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPlans()
-      .then((result) => {
-        const options = result.map((p) => ({ id: p.id, name: p.name }));
-        setPlans(options);
-        if (options.length > 0) {
-          setSelectedPlanId(options[0]!.id);
-        }
-      })
-      .catch(() => { /* API unavailable */ })
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (!selectedPlanId) return;
-    setLoading(true);
-    fetchPlanSummary(selectedPlanId, memberId)
-      .then(setPlanSummary)
-      .catch(() => setPlanSummary(null))
-      .finally(() => setLoading(false));
-  }, [selectedPlanId, memberId]);
-
-  useEffect(() => {
-    if (!planSummary) return;
-    const ids = [
-      ...new Set(
-        planSummary.daily_summaries.flatMap((day) =>
-          Object.values(day.meals).flatMap((components) =>
-            components.map((c) => c.recipe_id),
-          ),
-        ),
-      ),
-    ];
-    fetchRecipesByIds(ids)
-      .then((hits) => setRecipeIndex(new Map(hits.map((r) => [r.id, r]))))
-      .catch(() => { /* non-critical, cards fall back to name-only */ });
-  }, [planSummary]);
-
-  useEffect(() => {
-    if (!memberId) return;
-    fetchMacroTargets(memberId)
-      .then((tgts) => {
-        const active = tgts.find((t) => t.is_active);
-        if (active) {
-          setTargets({
-            calories: active.calories,
-            protein_g: active.protein_g,
-            carbs_g: active.carbs_g,
-            fat_g: active.fat_g,
-          });
-        }
-      })
-      .catch(() => { /* ignore */ });
-  }, [memberId]);
+  const recipeIndex = useMemo(
+    () => new Map((data?.recipes ?? []).map((r) => [r.id, r])),
+    [data],
+  );
 
   const days = useMemo(() => {
     if (!planSummary) return [];
@@ -262,6 +323,14 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
     );
   }, [planSummary]);
 
+  const hasEmptySlots = days.some((d) => Object.keys(d.meals).length === 0);
+
+  const runAction = (run: (planId: string) => void, status: string) => {
+    if (!planSummary) return;
+    run(planSummary.plan_id);
+    setActionStatus(status);
+  };
+
   if (loading && !planSummary) {
     return (
       <div>
@@ -270,7 +339,7 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
     );
   }
 
-  if (plans.length === 0) {
+  if (!planSummary && (!plans || plans.options.length === 0)) {
     return (
       <div>
         <div className="view-header">
@@ -288,7 +357,9 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
         <p>{planSummary ? `${planSummary.days}-day plan overview` : "Select a plan"}</p>
       </div>
 
-      <PlanSelector plans={plans} selectedId={selectedPlanId} onSelect={setSelectedPlanId} />
+      {plans && (
+        <PlanSelector plans={plans.options} selectedId={plans.selectedId} onSelect={plans.onSelect} />
+      )}
 
       {planSummary && (
         <>
@@ -300,6 +371,28 @@ export function WeeklyCalendarPage({ memberId }: WeeklyCalendarPageProps) {
             ))}
           </div>
         </>
+      )}
+
+      {actions && planSummary && (
+        <div className={styles.actions}>
+          {hasEmptySlots && (
+            <Button onPress={() => runAction(actions.optimizeEmptySlots, "optimizing")}>
+              Optimize Empty Slots
+            </Button>
+          )}
+          <Button variant="secondary" onPress={() => runAction(actions.rebalance, "rebalancing")}>
+            Rebalance Plan
+          </Button>
+          <Button variant="ghost" onPress={() => runAction(actions.refresh, "refreshing")}>
+            Refresh
+          </Button>
+        </div>
+      )}
+
+      {actionStatus && (
+        <div className={styles.status}>
+          Status: {actionStatus}...
+        </div>
       )}
     </div>
   );
