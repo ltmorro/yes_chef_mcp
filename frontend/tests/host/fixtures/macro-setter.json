@@ -1,0 +1,21 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Showing macro target editor for Alex with active target 'Cut': 1940 kcal, 150g protein, 200g carbs, 60g fat"
+    }
+  ],
+  "structuredContent": {
+    "member_id": "m1",
+    "member_name": "Alex",
+    "target_name": "Cut",
+    "current_targets": {
+      "name": "Cut",
+      "calories": 1940.0,
+      "protein_g": 150.0,
+      "carbs_g": 200.0,
+      "fat_g": 60.0
+    }
+  },
+  "isError": false
+}

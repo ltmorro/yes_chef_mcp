@@ -1,0 +1,52 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Showing grocery checklist with 4 items across 3 categories"
+    }
+  ],
+  "structuredContent": {
+    "grocery_list": {
+      "plan_id": "plan-spring",
+      "items": [
+        {
+          "name": "rice",
+          "quantity": 1.0,
+          "unit": "cup",
+          "category": "grain",
+          "recipe_sources": [
+            "Garlic Rice"
+          ]
+        },
+        {
+          "name": "garlic",
+          "quantity": 3.0,
+          "unit": "cloves",
+          "category": "produce",
+          "recipe_sources": [
+            "Garlic Rice"
+          ]
+        },
+        {
+          "name": "lemon",
+          "quantity": 1.0,
+          "unit": null,
+          "category": "produce",
+          "recipe_sources": [
+            "Lemon Chicken"
+          ]
+        },
+        {
+          "name": "chicken breast",
+          "quantity": 2.0,
+          "unit": "lb",
+          "category": "protein",
+          "recipe_sources": [
+            "Lemon Chicken"
+          ]
+        }
+      ]
+    }
+  },
+  "isError": false
+}

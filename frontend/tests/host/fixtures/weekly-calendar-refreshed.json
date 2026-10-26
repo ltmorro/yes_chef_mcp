@@ -1,0 +1,131 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Showing 7-day calendar for plan 'Spring Week' (3 of 7 days have meals)"
+    }
+  ],
+  "structuredContent": {
+    "plan_id": "plan-spring",
+    "member_id": "m1",
+    "plan_summary": {
+      "plan_id": "plan-spring",
+      "plan_name": "Spring Week",
+      "start_date": "2026-04-01",
+      "days": 7,
+      "detail_level": "full",
+      "daily_summaries": [
+        {
+          "day_offset": 0,
+          "member_macros": {
+            "m1": {
+              "calories": 450.0,
+              "protein_g": 40.0,
+              "carbs_g": 30.0,
+              "fat_g": 10.0
+            }
+          },
+          "meals": {
+            "dinner": [
+              {
+                "recipe_id": "r1",
+                "servings": 1.0
+              }
+            ]
+          }
+        },
+        {
+          "day_offset": 1,
+          "member_macros": {
+            "m1": {
+              "calories": 320.0,
+              "protein_g": 40.0,
+              "carbs_g": 30.0,
+              "fat_g": 10.0
+            }
+          },
+          "meals": {
+            "dinner": [
+              {
+                "recipe_id": "r2",
+                "servings": 1.0
+              }
+            ]
+          }
+        },
+        {
+          "day_offset": 2,
+          "member_macros": {
+            "m1": {
+              "calories": 320.0,
+              "protein_g": 40.0,
+              "carbs_g": 30.0,
+              "fat_g": 10.0
+            }
+          },
+          "meals": {
+            "lunch": [
+              {
+                "recipe_id": "r2",
+                "servings": 1.0
+              }
+            ]
+          }
+        }
+      ],
+      "weekly_averages": {
+        "m1": {
+          "calories": 363.3333333333333,
+          "protein_g": 40.0,
+          "carbs_g": 30.0,
+          "fat_g": 10.0
+        }
+      }
+    },
+    "targets": {
+      "calories": 1940.0,
+      "protein_g": 150.0,
+      "carbs_g": 200.0,
+      "fat_g": 60.0
+    },
+    "recipes": [
+      {
+        "id": "r1",
+        "name": "Lemon Chicken",
+        "category": "main",
+        "tags": [
+          "dinner"
+        ],
+        "prep_minutes": null,
+        "cook_minutes": null,
+        "macro_summary": {
+          "calories": 450.0,
+          "protein_g": 40.0,
+          "carbs_g": 30.0,
+          "fat_g": 10.0
+        },
+        "search_score": 1.0,
+        "match_type": "keyword"
+      },
+      {
+        "id": "r2",
+        "name": "Garlic Rice",
+        "category": "main",
+        "tags": [
+          "dinner"
+        ],
+        "prep_minutes": null,
+        "cook_minutes": null,
+        "macro_summary": {
+          "calories": 320.0,
+          "protein_g": 40.0,
+          "carbs_g": 30.0,
+          "fat_g": 10.0
+        },
+        "search_score": 1.0,
+        "match_type": "keyword"
+      }
+    ]
+  },
+  "isError": false
+}

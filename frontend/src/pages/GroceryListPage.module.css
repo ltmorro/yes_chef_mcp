@@ -7,6 +7,15 @@
   font: var(--text-body);
 }
 
+/* ── Header Row (title + fullscreen toggle) ─────────────────────────── */
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 /* ── Plan Selector ───────────────────────────────────────────────────── */
 
 .planSelector {

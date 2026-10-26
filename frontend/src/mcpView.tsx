@@ -10,7 +10,7 @@ import { StrictMode } from "react";
 import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { useMcpView } from "./bridge.ts";
-import type { ConnectedView, PayloadParser } from "./bridge.ts";
+import type { ConnectedView, McpUiDisplayMode, PayloadParser } from "./bridge.ts";
 import { ViewStatus } from "./components";
 import "./global.css";
 
@@ -18,10 +18,12 @@ interface McpViewProps<T> {
   appName: string;
   parse: PayloadParser<T>;
   render: (view: ConnectedView<T>) => ReactNode;
+  /** Display modes the view supports; defaults to inline only. */
+  displayModes?: McpUiDisplayMode[];
 }
 
-function ConnectedMcpView<T>({ appName, parse, render }: McpViewProps<T>) {
-  const state = useMcpView(appName, parse);
+function ConnectedMcpView<T>({ appName, parse, render, displayModes }: McpViewProps<T>) {
+  const state = useMcpView(appName, parse, displayModes);
 
   switch (state.status) {
     case "connecting":
@@ -54,7 +56,9 @@ export function mountMcpView<T>(props: McpViewProps<T>): void {
   if (!root) throw new Error("Missing #root element");
   createRoot(root).render(
     <StrictMode>
-      <McpView {...props} />
+      <div className="mcp-view">
+        <McpView {...props} />
+      </div>
     </StrictMode>,
   );
 }

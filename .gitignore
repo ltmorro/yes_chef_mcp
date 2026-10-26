@@ -38,6 +38,8 @@ node_modules/
 ui/dist/
 
 # Testing
+frontend/test-results/
+frontend/playwright-report/
 .coverage
 htmlcov/
 .pytest_cache/

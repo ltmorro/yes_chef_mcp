@@ -49,7 +49,15 @@ function calendarActions({
 mountMcpView({
   appName: "Weekly Calendar",
   parse: parseWeeklyCalendarData,
+  displayModes: ["inline", "fullscreen"],
   render: (view) => (
-    <WeeklyCalendarPage source={{ loading: false, data: view.data, actions: calendarActions(view) }} />
+    <WeeklyCalendarPage
+      source={{
+        loading: false,
+        data: view.data,
+        actions: calendarActions(view),
+        display: view.display,
+      }}
+    />
   ),
 });

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { ActionStatus, Button, Card, RecipeCard, ProgressBar } from "../components";
+import { ActionStatus, Button, Card, FullscreenToggle, RecipeCard, ProgressBar } from "../components";
+import type { DisplayModeControl } from "../bridge.ts";
 import type { DaySummary, MacroSummary, RecipeHit, WeeklyCalendarData } from "../types.ts";
 import { fetchPlans, fetchPlanSummary, fetchMacroTargets, fetchRecipesByIds } from "../api.ts";
 import { useAsyncAction } from "../useAsyncAction.ts";
@@ -47,6 +48,8 @@ export interface WeeklyCalendarSource {
   plans?: PlanPicker;
   /** MCP host only: plan actions routed through the host. */
   actions?: WeeklyCalendarActions;
+  /** MCP host only, when it offers fullscreen: inline / fullscreen toggle. */
+  display?: DisplayModeControl;
 }
 
 function planRecipeIds(data: WeeklyCalendarData["plan_summary"]): string[] {
@@ -316,7 +319,7 @@ interface WeeklyCalendarPageProps {
 }
 
 export function WeeklyCalendarPage({ source }: WeeklyCalendarPageProps) {
-  const { loading, data, plans, actions } = source;
+  const { loading, data, plans, actions, display } = source;
   const planSummary = data?.plan_summary ?? null;
   const targets = data?.targets ?? null;
   const [actionState, runAction] = useAsyncAction();
@@ -371,9 +374,12 @@ export function WeeklyCalendarPage({ source }: WeeklyCalendarPageProps) {
 
   return (
     <div>
-      <div className="view-header">
-        <h1>{planSummary?.plan_name ?? "Weekly Calendar"}</h1>
-        <p>{planSummary ? `${planSummary.days}-day plan overview` : "Select a plan"}</p>
+      <div className={styles.headerRow}>
+        <div className="view-header">
+          <h1>{planSummary?.plan_name ?? "Weekly Calendar"}</h1>
+          <p>{planSummary ? `${planSummary.days}-day plan overview` : "Select a plan"}</p>
+        </div>
+        {display && <FullscreenToggle display={display} />}
       </div>
 
       {plans && (
