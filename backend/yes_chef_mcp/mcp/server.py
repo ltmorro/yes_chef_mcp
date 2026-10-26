@@ -16,6 +16,8 @@ from fastmcp.exceptions import ToolError
 from fastmcp.tools import ToolResult
 from mcp.types import ToolAnnotations
 
+from yes_chef_mcp.core.cook_mode import cook_steps, scale_ingredients
+from yes_chef_mcp.core.cook_mode import log_cooked_meal as _log_cooked_meal
 from yes_chef_mcp.core.grocery import generate_grocery_list as _generate_grocery
 from yes_chef_mcp.core.meal_composer import compose_meal as _compose
 from yes_chef_mcp.core.meal_composer import suggest_complements
@@ -28,6 +30,7 @@ from yes_chef_mcp.core.members import (
     list_members,
 )
 from yes_chef_mcp.core.models import (
+    CookRating,
     DetailLevel,
     MealComponent,
     MealSlot,
@@ -48,6 +51,7 @@ from yes_chef_mcp.core.planner import (
     add_meal_slot,
     get_meal_plan,
     get_meal_slots,
+    slot_servings,
 )
 from yes_chef_mcp.core.planner import (
     create_meal_plan as _create_plan,
@@ -61,6 +65,7 @@ from yes_chef_mcp.core.recipe_store import (
 )
 from yes_chef_mcp.core.schemas import (
     ComplementSuggestionSchema,
+    CookModeDataSchema,
     GroceryListDataSchema,
     GroceryListSchema,
     MacroSetterDataSchema,
@@ -69,6 +74,7 @@ from yes_chef_mcp.core.schemas import (
     MacroTargetSchema,
     MealComponentSchema,
     MealCompositionSchema,
+    MealLogEntrySchema,
     MealPlanDaySummarySchema,
     MealPlanSchema,
     MealPlanSummarySchema,
@@ -94,7 +100,7 @@ mcp = FastMCP("yes_chef_mcp", instructions="Meal planning with macro optimizatio
 
 _READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 
-# create_meal_plan / set_macro_target insert a fresh row (new UUID) per call.
+# create_meal_plan / set_macro_target / log_cooked_meal insert a fresh row (new UUID) per call.
 _CREATE = ToolAnnotations(
     readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False
 )
@@ -590,6 +596,32 @@ async def rebalance_plan(
     return RebalancedPlanSchema.model_validate(result)
 
 
+# ── Meal Log ──────────────────────────────────────────────────────────────
+
+
+@mcp.tool(title="Log Cooked Meal", annotations=_CREATE)
+async def log_cooked_meal(
+    recipe_id: str,
+    servings: float,
+    rating: CookRating | None = None,
+    plan_id: str | None = None,
+    day_offset: int | None = None,
+    meal_type: MealType | None = None,
+) -> MealLogEntrySchema:
+    """Record that a recipe was cooked, with an optional rating (good / okay / bad).
+
+    Pass plan_id, day_offset and meal_type when the meal filled a plan slot.
+    Every call adds a new entry. Cook mode's Done button calls this.
+    """
+    if await get_recipe(recipe_id) is None:
+        raise ToolError(f"Recipe not found: {recipe_id!r}")
+    if plan_id is not None and await get_meal_plan(plan_id) is None:
+        raise ToolError(f"Meal plan not found: {plan_id!r}")
+
+    entry = await _log_cooked_meal(recipe_id, servings, rating, plan_id, day_offset, meal_type)
+    return MealLogEntrySchema.model_validate(entry)
+
+
 # ── View Tools (MCP Apps Extension) ─────────────────────────────────────
 
 # Each view tool returns a ToolResult: a one-line text summary for the model,
@@ -761,6 +793,78 @@ async def show_grocery_checklist(
     return ToolResult(content=summary, structured_content=data.model_dump(mode="json"))
 
 
+@mcp.tool(
+    app=AppConfig(resource_uri="ui://yes_chef_mcp/cook-mode.html"),
+    output_schema=CookModeDataSchema.model_json_schema(),
+)
+async def show_cook_mode(
+    recipe_id: str,
+    servings: float | None = None,
+    plan_id: str | None = None,
+    day_offset: int | None = None,
+    meal_type: MealType | None = None,
+) -> ToolResult:
+    """Show a step-by-step cook mode for a recipe: one step per screen, tappable
+    timers, and an ingredient sheet scaled to the servings being cooked.
+
+    Servings come from `servings` if given, else from the plan slot
+    (plan_id + day_offset + meal_type, which must hold this recipe), else the
+    recipe's own yield. When the user taps Done, the view logs the meal with
+    log_cooked_meal (with their rating) and reports it back.
+    """
+    recipe = await get_recipe(recipe_id)
+    if recipe is None:
+        raise ToolError(f"Recipe not found: {recipe_id!r}")
+
+    slot_args = (plan_id, day_offset, meal_type)
+    if any(a is not None for a in slot_args) and any(a is None for a in slot_args):
+        raise ToolError("Pass plan_id, day_offset and meal_type together, or none of them.")
+
+    if plan_id is not None and day_offset is not None:
+        slot = next(
+            (
+                s
+                for s in await get_meal_slots(plan_id, day_offset)
+                if s.meal_type == meal_type and s.recipe_id == recipe_id
+            ),
+            None,
+        )
+        if slot is None:
+            raise ToolError(
+                f"Recipe {recipe_id!r} is not in plan {plan_id!r} on day {day_offset} "
+                f"for {meal_type}."
+            )
+        if servings is None:
+            servings = slot_servings(slot)
+
+    if servings is None:
+        servings = recipe.servings
+    if servings <= 0:
+        raise ToolError("servings must be greater than 0.")
+
+    factor = servings / max(recipe.servings, 1)
+    data = CookModeDataSchema.model_validate(
+        {
+            "recipe_id": recipe.id,
+            "recipe_name": recipe.name,
+            "servings": servings,
+            "base_servings": recipe.servings,
+            "ingredients": scale_ingredients(recipe.ingredients, factor),
+            "steps": cook_steps(recipe.instructions),
+            "plan_id": plan_id,
+            "day_offset": day_offset,
+            "meal_type": meal_type,
+        }
+    )
+
+    noun = "step" if len(data.steps) == 1 else "steps"
+    summary = (
+        f"Showing cook mode for {recipe.name}: {len(data.steps)} {noun}, "
+        f"ingredients scaled to {servings:g} servings"
+    )
+    return ToolResult(content=summary, structured_content=data.model_dump(mode="json"))
+
+
 # ── UI Resources (MCP Apps) ─────────────────────────────────────────────
 
 # Each resource serves a single-file HTML bundle from frontend/dist/views/
@@ -771,8 +875,8 @@ async def show_grocery_checklist(
 # - true for the macro setter and grocery list: a compact form and an open
 #   checklist with no outer container of their own, which read best boxed as
 #   one unit in the conversation;
-# - false for the recipe selector and weekly calendar: both are already built
-#   from bordered cards, so a host frame would just nest a box around boxes.
+# - false for the recipe selector, weekly calendar and cook mode: all are already
+#   built from bordered cards, so a host frame would just nest a box around boxes.
 
 
 @mcp.resource(
@@ -817,3 +921,14 @@ def grocery_list_resource() -> str:
     from yes_chef_mcp.api.views import read_view_html
 
     return read_view_html("grocery-list")
+
+
+@mcp.resource(
+    "ui://yes_chef_mcp/cook-mode.html",
+    app=AppConfig(prefersBorder=False),
+)
+def cook_mode_resource() -> str:
+    """Step-by-step cook mode UI."""
+    from yes_chef_mcp.api.views import read_view_html
+
+    return read_view_html("cook-mode")

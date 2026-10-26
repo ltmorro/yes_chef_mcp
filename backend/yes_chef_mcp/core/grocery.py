@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from yes_chef_mcp.core.models import GroceryItem, GroceryList
-from yes_chef_mcp.core.planner import get_meal_slots
+from yes_chef_mcp.core.planner import get_meal_slots, slot_servings
 from yes_chef_mcp.core.recipe_store import get_recipe
 
 # Common pantry items to exclude when exclude_pantry=True
@@ -42,13 +42,7 @@ async def generate_grocery_list(
         if recipe is None:
             continue
 
-        # Compute total servings multiplier
-        if slot.member_servings:
-            total_servings = sum(slot.member_servings.values())
-        else:
-            total_servings = slot.servings
-
-        scale = total_servings / max(recipe.servings, 1)
+        scale = slot_servings(slot) / max(recipe.servings, 1)
 
         for ing in recipe.ingredients:
             key = _normalize_ingredient_name(ing.name)

@@ -1,0 +1,51 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Showing cook mode for Lemon Chicken: 3 steps, ingredients scaled to 3 servings"
+    }
+  ],
+  "structuredContent": {
+    "recipe_id": "r1",
+    "recipe_name": "Lemon Chicken",
+    "servings": 3.0,
+    "base_servings": 1,
+    "ingredients": [
+      {
+        "name": "chicken breast",
+        "quantity": 6.0,
+        "unit": "lb",
+        "raw_text": "",
+        "sub_recipe_id": null
+      },
+      {
+        "name": "lemon",
+        "quantity": 3.0,
+        "unit": null,
+        "raw_text": "",
+        "sub_recipe_id": null
+      }
+    ],
+    "steps": [
+      {
+        "index": 1,
+        "text": "Pat the chicken dry and season it.",
+        "timer_seconds": null
+      },
+      {
+        "index": 2,
+        "text": "Sear for 5 minutes per side.",
+        "timer_seconds": 300
+      },
+      {
+        "index": 3,
+        "text": "Squeeze the lemon over and rest 2 minutes.",
+        "timer_seconds": 120
+      }
+    ],
+    "plan_id": "plan-spring",
+    "day_offset": 0,
+    "meal_type": "dinner"
+  },
+  "isError": false
+}

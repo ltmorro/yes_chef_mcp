@@ -45,6 +45,11 @@ PLAN_ID = "plan-spring"
 MEMBER_ID = "m1"
 JsonObject = dict[str, object]
 IngredientRow = tuple[str, float, str | None]
+INSTRUCTIONS = {
+    "r1": "1. Pat the chicken dry and season it.\n"
+    "2. Sear for 5 minutes per side.\n"
+    "3. Squeeze the lemon over and rest 2 minutes.",
+}
 
 
 def dump(result: CallToolResult) -> JsonObject:
@@ -80,6 +85,7 @@ async def seed() -> None:
             category=RecipeCategory.MAIN,
             tags=["dinner"],
             ingredients=[Ingredient(name=n, quantity=q, unit=u) for n, q, u in ingredients],
+            instructions=INSTRUCTIONS.get(rid, ""),
             created_at=now,
             updated_at=now,
         )
@@ -110,6 +116,8 @@ async def main() -> None:
         macro = {"member_id": MEMBER_ID, "name": "Cut", "protein_g": 150, "carbs_g": 200}
         await client.call_tool("set_macro_target", {**macro, "calories": 1940, "fat_g": 60})
 
+        # Cook mode for the day-0 dinner, scaled to 3 servings of a 1-serving recipe
+        slot: JsonObject = {"plan_id": PLAN_ID, "day_offset": 0, "meal_type": "dinner"}
         calls: dict[str, tuple[str, JsonObject]] = {
             "macro-setter": ("show_macro_target_setter", {}),
             "recipe-selector": ("show_recipe_selector", {}),
@@ -119,6 +127,10 @@ async def main() -> None:
             ),
             "weekly-calendar-nomember": ("show_weekly_calendar", {"plan_id": PLAN_ID}),
             "grocery-list": ("show_grocery_checklist", {"plan_id": PLAN_ID}),
+            "cook-mode": (
+                "show_cook_mode",
+                {"recipe_id": "r1", "servings": 3, **slot},
+            ),
         }
         for key, (tool, args) in calls.items():
             results[key] = dump(await client.call_tool(tool, args))
@@ -134,6 +146,11 @@ async def main() -> None:
             "set_macro_target", {**macro, "calories": 2165, "fat_g": 65, "set_active": True}
         )
         results["set-macro-target"] = dump(saved)
+        logged = await client.call_tool(
+            "log_cooked_meal",
+            {"recipe_id": "r1", "servings": 3, "rating": "good", **slot},
+        )
+        results["log-cooked-meal"] = dump(logged)
 
     for key, result in results.items():
         OUT.joinpath(f"{key}.json").write_text(json.dumps(result, indent=2) + "\n")

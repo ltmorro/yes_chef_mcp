@@ -23,9 +23,11 @@ import { useApp, useHostStyles } from "@modelcontextprotocol/ext-apps/react";
 import type { App, McpUiDisplayMode, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import type { CallToolResult } from "@modelcontextprotocol/client";
 import type {
+  CookModeData,
   GroceryListData,
   MacroSetterData,
   MacroTarget,
+  MealLogEntry,
   RecipeSelectorData,
   WeeklyCalendarData,
 } from "./types.ts";
@@ -274,4 +276,16 @@ export const parseGroceryListData: PayloadParser<GroceryListData> = (value) => {
   if (!isRecord(value) || !isRecord(value.grocery_list)) return null;
   if (!Array.isArray(value.grocery_list.items)) return null;
   return value as unknown as GroceryListData;
+};
+
+export const parseCookModeData: PayloadParser<CookModeData> = (value) => {
+  if (!isRecord(value) || typeof value.recipe_name !== "string") return null;
+  if (!Array.isArray(value.steps) || !Array.isArray(value.ingredients)) return null;
+  return value as unknown as CookModeData;
+};
+
+/** structuredContent of log_cooked_meal (a MealLogEntrySchema). */
+export const parseMealLogEntry: PayloadParser<MealLogEntry> = (value) => {
+  if (!isRecord(value) || typeof value.id !== "string") return null;
+  return value as unknown as MealLogEntry;
 };

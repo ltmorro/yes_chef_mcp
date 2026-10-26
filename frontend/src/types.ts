@@ -54,6 +54,32 @@ export interface GroceryItem {
   recipe_sources: string[];
 }
 
+export interface Ingredient {
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+}
+
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export interface CookStep {
+  /** 1-based, as shown to the cook. */
+  index: number;
+  text: string;
+  timer_seconds: number | null;
+}
+
+export type CookRating = "good" | "okay" | "bad";
+
+/** structuredContent of log_cooked_meal (a MealLogEntrySchema). */
+export interface MealLogEntry {
+  id: string;
+  recipe_id: string;
+  servings: number;
+  cooked_at: string;
+  rating: CookRating | null;
+}
+
 export interface GroceryList {
   plan_id: string;
   items: GroceryItem[];
@@ -98,6 +124,20 @@ export interface WeeklyCalendarData {
 
 export interface GroceryListData {
   grocery_list: GroceryList;
+}
+
+export interface CookModeData {
+  recipe_id: string;
+  recipe_name: string;
+  /** Servings being cooked; ingredient quantities are already scaled to this. */
+  servings: number;
+  base_servings: number;
+  ingredients: Ingredient[];
+  steps: CookStep[];
+  /** The plan slot being cooked, if any; Done logs against it. */
+  plan_id: string | null;
+  day_offset: number | null;
+  meal_type: MealType | null;
 }
 
 /** Progress of a button action, shown next to the button. */

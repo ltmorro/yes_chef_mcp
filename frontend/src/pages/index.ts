@@ -6,3 +6,5 @@ export { WeeklyCalendarPage, useRestWeeklyCalendarSource } from "./WeeklyCalenda
 export type { WeeklyCalendarSource, WeeklyCalendarActions } from "./WeeklyCalendarPage";
 export { GroceryListPage, useRestGroceryListSource } from "./GroceryListPage";
 export type { GroceryListSource, GroceryConfirmation } from "./GroceryListPage";
+export { CookModePage } from "./CookModePage";
+export type { CookModeSource } from "./CookModePage";

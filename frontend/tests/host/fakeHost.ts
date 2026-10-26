@@ -21,7 +21,12 @@ import { expect, test as base } from "@playwright/test";
 import type { FrameLocator, Page } from "@playwright/test";
 import type { McpUiHostCapabilities, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 
-export type ViewName = "macro-setter" | "recipe-selector" | "weekly-calendar" | "grocery-list";
+export type ViewName =
+  | "macro-setter"
+  | "recipe-selector"
+  | "weekly-calendar"
+  | "grocery-list"
+  | "cook-mode";
 
 /** A CallToolResult as the host forwards it (the fixtures' JSON shape). */
 export interface ToolResult {

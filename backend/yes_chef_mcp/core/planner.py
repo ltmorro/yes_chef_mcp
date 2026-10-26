@@ -159,6 +159,11 @@ async def get_meal_slots(
     ]
 
 
+def slot_servings(slot: MealSlot) -> float:
+    """Total servings cooked for a slot: the per-member sum when set, else its servings."""
+    return sum(slot.member_servings.values()) if slot.member_servings else slot.servings
+
+
 async def remove_meal_slot(
     plan_id: str,
     day_offset: int,

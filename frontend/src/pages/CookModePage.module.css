@@ -1,0 +1,114 @@
+/* ── CookModePage ────────────────────────────────────────────────────── */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.tools {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.stepText {
+  font: var(--text-heading);
+  color: var(--color-text);
+}
+
+/* Big, thumb-sized buttons that split the width. */
+.nav {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.nav > * {
+  flex: 1;
+}
+
+/* ── Rating ──────────────────────────────────────────────────────────── */
+
+.ratings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rating {
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-text);
+  font: var(--text-body);
+  cursor: pointer;
+}
+
+.rating[data-hovered] {
+  background: var(--color-surface-hover);
+}
+
+.rating[data-selected] {
+  background: var(--color-primary-bg);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.rating[data-disabled] {
+  cursor: not-allowed;
+}
+
+.rating[data-focus-visible] {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* ── Ingredient sheet ────────────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--color-bg);
+}
+
+.sheet {
+  width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--color-surface);
+  box-shadow: var(--elevation-3);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  outline: none;
+}
+
+.sheetTitle {
+  font: var(--text-heading);
+  color: var(--color-text);
+}
+
+.ingredients {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+  font: var(--text-body);
+  color: var(--color-text);
+}
