@@ -1,10 +1,60 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button, Card, CaloriePanel, SliderPanel } from "../components";
 import type { MacroKey, MacroConfig } from "../components";
+import type { MacroSetterData } from "../types.ts";
 import { fetchMacroTargets, saveMacroTarget } from "../api.ts";
 import styles from "./MacroSetterPage.module.css";
 
+/* ── Data source ─────────────────────────────────────────────────────── */
+
+export interface MacroValues {
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
+/**
+ * Where the page gets its data and sends its actions. In an MCP host the
+ * data is the show_macro_target_setter tool result; in the SPA it is REST.
+ */
+export interface MacroSetterSource {
+  /** null while loading. */
+  data: MacroSetterData | null;
+  save: (values: MacroValues) => void;
+}
+
+/** SPA data source backed by the REST API. */
+export function useRestMacroSetterSource(memberId?: string): MacroSetterSource {
+  const [data, setData] = useState<MacroSetterData | null>(null);
+
+  useEffect(() => {
+    if (!memberId) {
+      setData({ current_targets: null });
+      return;
+    }
+    fetchMacroTargets(memberId)
+      .then((targets) => {
+        const active = targets.find((t) => t.is_active);
+        setData({ current_targets: active ?? null });
+      })
+      .catch(() => setData({ current_targets: null })); // API unavailable — use defaults
+  }, [memberId]);
+
+  const save = useCallback(
+    (values: MacroValues) => {
+      if (!memberId) return;
+      saveMacroTarget(memberId, values).catch(() => { /* handle error */ });
+    },
+    [memberId],
+  );
+
+  return { data, save };
+}
+
 /* ── Macro definitions ───────────────────────────────────────────────── */
+
+const DEFAULTS = { protein_g: 150, carbs_g: 200, fat_g: 65 };
 
 function buildMacros(protein: number, carbs: number, fat: number): MacroConfig[] {
   return [
@@ -14,40 +64,30 @@ function buildMacros(protein: number, carbs: number, fat: number): MacroConfig[]
   ];
 }
 
-/* ── Page Component ──────────────────────────��───────────────────────── */
+/* ── Page Component ──────────────────────────────────────────────────── */
 
 interface MacroSetterPageProps {
-  memberId?: string;
+  source: MacroSetterSource;
 }
 
-export function MacroSetterPage({ memberId }: MacroSetterPageProps) {
-  const [protein, setProtein] = useState(150);
-  const [carbs, setCarbs] = useState(200);
-  const [fat, setFat] = useState(65);
+export function MacroSetterPage({ source }: MacroSetterPageProps) {
+  const { data, save } = source;
+  const defaults = data?.current_targets ?? DEFAULTS;
+
+  const [protein, setProtein] = useState(defaults.protein_g);
+  const [carbs, setCarbs] = useState(defaults.carbs_g);
+  const [fat, setFat] = useState(defaults.fat_g);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [defaults, setDefaults] = useState<{ protein_g: number; carbs_g: number; fat_g: number } | null>(null);
+
+  // Re-seed the sliders whenever new data arrives (REST load or a new tool result)
+  useEffect(() => {
+    const next = data?.current_targets ?? DEFAULTS;
+    setProtein(next.protein_g);
+    setCarbs(next.carbs_g);
+    setFat(next.fat_g);
+  }, [data]);
 
   const totalCalories = Math.round(protein * 4 + carbs * 4 + fat * 9);
-
-  useEffect(() => {
-    if (!memberId) {
-      setLoading(false);
-      return;
-    }
-    fetchMacroTargets(memberId)
-      .then((targets) => {
-        const active = targets.find((t) => t.is_active);
-        if (active) {
-          setProtein(active.protein_g);
-          setCarbs(active.carbs_g);
-          setFat(active.fat_g);
-          setDefaults({ protein_g: active.protein_g, carbs_g: active.carbs_g, fat_g: active.fat_g });
-        }
-      })
-      .catch(() => { /* API unavailable — use defaults */ })
-      .finally(() => setLoading(false));
-  }, [memberId]);
 
   const handleMacroChange = useCallback((key: MacroKey, grams: number) => {
     if (key === "protein") setProtein(grams);
@@ -66,25 +106,18 @@ export function MacroSetterPage({ memberId }: MacroSetterPageProps) {
   }, [totalCalories]);
 
   const handleSave = useCallback(() => {
-    if (memberId) {
-      saveMacroTarget(memberId, {
-        calories: totalCalories,
-        protein_g: protein,
-        carbs_g: carbs,
-        fat_g: fat,
-      }).catch(() => { /* handle error */ });
-    }
+    save({ calories: totalCalories, protein_g: protein, carbs_g: carbs, fat_g: fat });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [memberId, protein, carbs, fat, totalCalories]);
+  }, [save, protein, carbs, fat, totalCalories]);
 
   const handleReset = () => {
-    setProtein(defaults?.protein_g ?? 150);
-    setCarbs(defaults?.carbs_g ?? 200);
-    setFat(defaults?.fat_g ?? 65);
+    setProtein(defaults.protein_g);
+    setCarbs(defaults.carbs_g);
+    setFat(defaults.fat_g);
   };
 
-  if (loading) {
+  if (!data) {
     return (
       <div>
         <div className={styles.loading}>Loading targets...</div>

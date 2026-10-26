@@ -400,3 +400,38 @@ class MealPlanSummarySchema(BaseModel):
     detail_level: DetailLevel
     daily_summaries: list[MealPlanDaySummarySchema] = Field(default_factory=list)
     weekly_averages: dict[str, MacroSummarySchema] = Field(default_factory=dict)
+
+
+# ── MCP Apps View Payloads ───────────────────────────────────────────────
+# structuredContent returned by the show_* view tools. Mirrored by the
+# *Data types in frontend/src/types.ts — keep the two in sync. The ignores
+# silence mypy flagging every BaseModel subclass under disallow_any_explicit.
+
+
+class MacroSetterTargetsSchema(BaseModel):  # type: ignore[explicit-any]
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    calories: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+
+
+class MacroSetterDataSchema(BaseModel):  # type: ignore[explicit-any]
+    current_targets: MacroSetterTargetsSchema | None = None
+
+
+class RecipeSelectorDataSchema(BaseModel):  # type: ignore[explicit-any]
+    recipes: list[RecipeSearchHitSchema] = Field(default_factory=list)
+
+
+class WeeklyCalendarDataSchema(BaseModel):  # type: ignore[explicit-any]
+    plan_summary: MealPlanSummarySchema
+    targets: MacroSummarySchema | None = None
+    # Hits for every recipe in the plan, so the view can render names and macros
+    recipes: list[RecipeSearchHitSchema] = Field(default_factory=list)
+
+
+class GroceryListDataSchema(BaseModel):  # type: ignore[explicit-any]
+    grocery_list: GroceryListSchema

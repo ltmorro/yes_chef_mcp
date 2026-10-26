@@ -7,21 +7,48 @@ import {
   RecipeSelectorPage,
   WeeklyCalendarPage,
   GroceryListPage,
+  useRestMacroSetterSource,
+  useRestRecipeSelectorSource,
+  useRestWeeklyCalendarSource,
+  useRestGroceryListSource,
 } from "../pages";
 import "../global.css";
 
+/* ── REST-backed pages ────────────────────────────────────────────────── */
+// The same page components the MCP views use, fed from the REST API.
+
+function MacrosRoute() {
+  return <MacroSetterPage source={useRestMacroSetterSource()} />;
+}
+
+function RecipesRoute() {
+  return <RecipeSelectorPage source={useRestRecipeSelectorSource()} />;
+}
+
+function CalendarRoute() {
+  return <WeeklyCalendarPage source={useRestWeeklyCalendarSource()} />;
+}
+
+function GroceryRoute() {
+  return <GroceryListPage source={useRestGroceryListSource()} />;
+}
+
 /* ── Page Router ──────────────────────────────────────────────────────── */
 
-function PageContent({ page }: { page: Page }) {
+interface PageContentProps {
+  page: Page;
+}
+
+function PageContent({ page }: PageContentProps) {
   switch (page) {
     case "macros":
-      return <MacroSetterPage />;
+      return <MacrosRoute />;
     case "recipes":
-      return <RecipeSelectorPage />;
+      return <RecipesRoute />;
     case "calendar":
-      return <WeeklyCalendarPage />;
+      return <CalendarRoute />;
     case "grocery":
-      return <GroceryListPage />;
+      return <GroceryRoute />;
   }
 }
 

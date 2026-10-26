@@ -11,3 +11,5 @@ export { AppShell } from "./AppShell";
 export { Sidebar } from "./Sidebar";
 export type { Page } from "./Sidebar";
 export { TopBar } from "./TopBar";
+export { ViewStatus } from "./ViewStatus";
+export type { ViewStatusProps } from "./ViewStatus";

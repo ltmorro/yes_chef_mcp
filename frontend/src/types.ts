@@ -59,16 +59,22 @@ export interface GroceryList {
   items: GroceryItem[];
 }
 
-/** View data payloads injected by the backend. */
+/**
+ * View payloads: the structuredContent of the show_* MCP view tools.
+ * Mirrors the *DataSchema Pydantic models in backend core/schemas.py.
+ * The SPA builds the same shapes from REST responses.
+ */
+
+export interface MacroSetterTargets {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
 
 export interface MacroSetterData {
-  current_targets?: {
-    protein_g: number;
-    carbs_g: number;
-    fat_g: number;
-    calories: number;
-    name: string;
-  };
+  current_targets: MacroSetterTargets | null;
 }
 
 export interface RecipeSelectorData {
@@ -77,7 +83,9 @@ export interface RecipeSelectorData {
 
 export interface WeeklyCalendarData {
   plan_summary: PlanSummary;
-  targets?: MacroSummary;
+  targets: MacroSummary | null;
+  /** Hits for every recipe referenced by the plan. */
+  recipes: RecipeHit[];
 }
 
 export interface GroceryListData {
