@@ -84,6 +84,28 @@ async def test_view_resources_are_mcp_apps() -> None:
             assert contents[0].mimeType == MCP_APP_MIME
 
 
+# Whether each view asks the host for a frame (see the UI Resources comment in server.py).
+PREFERS_BORDER: dict[str, bool] = {
+    "ui://yes_chef_mcp/macro-setter.html": True,
+    "ui://yes_chef_mcp/recipe-selector.html": False,
+    "ui://yes_chef_mcp/weekly-calendar.html": False,
+    "ui://yes_chef_mcp/grocery-list.html": True,
+}
+
+
+async def test_view_resources_ui_meta() -> None:
+    """prefersBorder is set explicitly, and no CSP domains are requested."""
+    async with Client(mcp) as client:
+        listed = {str(r.uri): r for r in await client.list_resources()}
+        for uri, prefers_border in PREFERS_BORDER.items():
+            ui = (listed[uri].meta or {})["ui"]
+            assert ui["prefersBorder"] is prefers_border, uri
+            assert "csp" not in ui, uri
+
+            contents = await client.read_resource(uri)
+            assert (contents[0].meta or {})["ui"]["prefersBorder"] is prefers_border, uri
+
+
 @pytest.mark.skipif(
     not VIEWS_DIR.is_dir(), reason="frontend not built (run `npm run build` in frontend/)"
 )
@@ -97,6 +119,9 @@ async def test_view_resources_are_self_contained() -> None:
 
             assert "localhost" not in html
             assert "unpkg" not in html
+            # Views use host fonts (or a local fallback stack), not Google Fonts.
+            assert "fonts.googleapis.com" not in html, f"{uri} loads Google Fonts"
+            assert "fonts.gstatic.com" not in html, f"{uri} loads Google Fonts"
             assert not re.search(r"<script[^>]*\bsrc=", html), f"{uri} loads an external script"
             assert re.search(r"<script[^>]*>\s*\S", html), f"{uri} has no inlined script"
 

@@ -48,7 +48,8 @@ async function confirm(
 mountMcpView({
   appName: "Grocery List",
   parse: parseGroceryListData,
-  render: ({ app, data, host }) => (
+  displayModes: ["inline", "fullscreen"],
+  render: ({ app, data, host, display }) => (
     <GroceryListPage
       source={{
         loading: false,
@@ -57,6 +58,7 @@ mountMcpView({
           ? (confirmation) =>
               confirm(app, data.grocery_list.plan_id, host.modelContext, confirmation)
           : undefined,
+        display,
       }}
     />
   ),

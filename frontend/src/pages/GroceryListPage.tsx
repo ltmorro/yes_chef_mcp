@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Checkbox } from "react-aria-components";
-import { ActionStatus, Button, Card } from "../components";
+import { ActionStatus, Button, Card, FullscreenToggle } from "../components";
+import type { DisplayModeControl } from "../bridge.ts";
 import type { GroceryItem, GroceryListData } from "../types.ts";
 import { fetchPlans, fetchGroceryList } from "../api.ts";
 import { useAsyncAction } from "../useAsyncAction.ts";
@@ -41,6 +42,8 @@ export interface GroceryListSource {
    * which has nowhere to send it yet, and in hosts that can't send messages.
    */
   onConfirm?: (confirmation: GroceryConfirmation) => Promise<void>;
+  /** MCP host only, when it offers fullscreen: inline / fullscreen toggle. */
+  display?: DisplayModeControl;
 }
 
 /** SPA data source backed by the REST API. */
@@ -226,7 +229,7 @@ interface GroceryListPageProps {
 const NO_ITEMS: GroceryItem[] = [];
 
 export function GroceryListPage({ source }: GroceryListPageProps) {
-  const { loading, data, plans, onConfirm } = source;
+  const { loading, data, plans, onConfirm, display } = source;
   const items = data?.grocery_list.items ?? NO_ITEMS;
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [confirmState, runConfirm] = useAsyncAction();
@@ -308,9 +311,12 @@ export function GroceryListPage({ source }: GroceryListPageProps) {
 
   return (
     <div>
-      <div className="view-header">
-        <h1>Grocery List</h1>
-        <p>Check off items you already have. Unchecked items will be your shopping list.</p>
+      <div className={styles.headerRow}>
+        <div className="view-header">
+          <h1>Grocery List</h1>
+          <p>Check off items you already have. Unchecked items will be your shopping list.</p>
+        </div>
+        {display && <FullscreenToggle display={display} />}
       </div>
 
       {plans && (

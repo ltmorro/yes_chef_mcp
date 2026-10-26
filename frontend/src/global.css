@@ -1,10 +1,27 @@
 /* ── Token Foundation ─────────────────────────────────────────────────── */
 
+/*
+ * Host theming (MCP Apps). Inside an MCP host, bridge.ts applies the host's
+ * context to <html>: `data-theme="light" | "dark"`, `color-scheme`, and the
+ * host's style variables (spec names such as --color-background-primary,
+ * --color-text-primary, --font-sans) as inline custom properties.
+ *
+ * Our semantic tokens read those host variables first and fall back to our
+ * own palette, so the SPA (no host, no variables) looks exactly as before and
+ * views blend into whatever host renders them. Brand, accent and macro
+ * data-viz colors are ours alone: they carry meaning and stay recognisable.
+ *
+ * Two host names match ours and simply override them when set:
+ * --font-mono and --color-text-inverse.
+ */
+
 :root {
   /* ── Fonts ─────────────────────────────────────────────────────────── */
-  --font-brand: "Lato", sans-serif;
-  --font-heading: "Playfair Display", serif;
-  --font-mono: "Recursive", monospace;
+  /* Views load no web fonts: host fonts first, then a local fallback stack.
+     The SPA still loads Lato / Playfair Display from Google Fonts. */
+  --font-brand: var(--font-sans, "Lato", "Helvetica Neue", Helvetica, sans-serif);
+  --font-heading: var(--font-sans, "Playfair Display", Georgia, serif);
+  --font-mono: "Recursive", ui-monospace, Menlo, Consolas, monospace;
 
   /* ── Spacing (8-point grid) ────────────────────────────────────────── */
   --space-1: 4px;
@@ -29,17 +46,17 @@
   --palette-mustard:    #D6A21E;
 
   /* ── Colors — Surface ──────────────────────────────────────────────── */
-  --color-bg:           var(--palette-cream);
-  --color-surface:      var(--palette-oat);
-  --color-surface-hover: #EDE0CB;
-  --color-border:       rgba(45, 58, 46, 0.2);
-  --color-border-focus: var(--palette-mustard);
+  --color-bg:            var(--color-background-primary, var(--palette-cream));
+  --color-surface:       var(--color-background-secondary, var(--palette-oat));
+  --color-surface-hover: var(--color-background-tertiary, #EDE0CB);
+  --color-border:        var(--color-border-primary, rgba(45, 58, 46, 0.2));
+  --color-border-focus:  var(--color-ring-primary, var(--palette-mustard));
 
   /* ── Colors — Text ─────────────────────────────────────────────────── */
-  --color-text:         var(--palette-charcoal);
+  --color-text:         var(--color-text-primary, var(--palette-charcoal));
   --color-text-inverse: var(--palette-cream);
-  --color-text-muted:   var(--palette-espresso);
-  --color-text-dim:     rgba(60, 46, 42, 0.55);
+  --color-text-muted:   var(--color-text-secondary, var(--palette-espresso));
+  --color-text-dim:     var(--color-text-tertiary, rgba(60, 46, 42, 0.55));
 
   /* ── Colors — Brand ────────────────────────────────────────────────── */
   --color-primary:      var(--palette-teal);
@@ -47,12 +64,14 @@
   --color-primary-bg:   rgba(0, 155, 141, 0.12);
 
   /* ── Colors — Semantic ─────────────────────────────────────────────── */
-  --color-success:      var(--palette-olive);
-  --color-success-bg:   var(--palette-mint);
-  --color-warning:      var(--palette-espresso);
-  --color-warning-bg:   var(--palette-mustard);
-  --color-danger:       var(--palette-terracotta);
-  --color-danger-bg:    rgba(200, 90, 58, 0.12);
+  /* Each text/bg pair comes from the host together or not at all in practice,
+     so the pairing (and its contrast) stays the host's or ours. */
+  --color-success:      var(--color-text-success, var(--palette-olive));
+  --color-success-bg:   var(--color-background-success, var(--palette-mint));
+  --color-warning:      var(--color-text-warning, var(--palette-espresso));
+  --color-warning-bg:   var(--color-background-warning, var(--palette-mustard));
+  --color-danger:       var(--color-text-danger, var(--palette-terracotta));
+  --color-danger-bg:    var(--color-background-danger, rgba(200, 90, 58, 0.12));
 
   /* ── Colors — Macro Data Viz ───────────────────────────────────────── */
   --color-protein:      var(--palette-teal);
@@ -92,6 +111,59 @@
   --text-mono-large: 700 28px/32px var(--font-mono);
 }
 
+/* ── Dark Theme ───────────────────────────────────────────────────────── */
+/* Set by the host via applyDocumentTheme (data-theme on <html>). Same host
+   variables first; only our fallbacks and our own colors change. */
+
+:root[data-theme="dark"] {
+  /* Surface */
+  --color-bg:            var(--color-background-primary, #1C231D);
+  --color-surface:       var(--color-background-secondary, #242D25);
+  --color-surface-hover: var(--color-background-tertiary, #2E392F);
+  --color-border:        var(--color-border-primary, rgba(244, 233, 216, 0.18));
+  --color-border-focus:  var(--color-ring-primary, var(--palette-mustard));
+
+  /* Text */
+  --color-text:         var(--color-text-primary, var(--palette-cream));
+  --color-text-inverse: #10201C;
+  --color-text-muted:   var(--color-text-secondary, #D9CCB8);
+  --color-text-dim:     var(--color-text-tertiary, rgba(244, 233, 216, 0.6));
+
+  /* Brand */
+  --color-primary:       #2BB3A4;
+  --color-primary-hover: #4CC6B8;
+  --color-primary-bg:    rgba(43, 179, 164, 0.18);
+
+  /* Semantic */
+  --color-success:    var(--color-text-success, #A9C46C);
+  --color-success-bg: var(--color-background-success, rgba(127, 199, 182, 0.2));
+  --color-warning:    var(--color-text-warning, #E6BE52);
+  --color-warning-bg: var(--color-background-warning, rgba(214, 162, 30, 0.24));
+  --color-danger:     var(--color-text-danger, #E3846A);
+  --color-danger-bg:  var(--color-background-danger, rgba(227, 132, 106, 0.16));
+
+  /* Macro data viz: brighter hues so marks and numbers read on dark */
+  --color-protein:     #2BB3A4;
+  --color-protein-bg:  rgba(43, 179, 164, 0.16);
+  --color-carbs:       #E6BE52;
+  --color-carbs-bg:    rgba(230, 190, 82, 0.16);
+  --color-fat:         #E3846A;
+  --color-fat-bg:      rgba(227, 132, 106, 0.16);
+  --color-calories:    #A9C46C;
+  --color-calories-bg: rgba(169, 196, 108, 0.16);
+
+  /* Meal-type tints */
+  --color-chip-breakfast: rgba(230, 190, 82, 0.1);
+  --color-chip-lunch:     rgba(43, 179, 164, 0.1);
+  --color-chip-dinner:    rgba(227, 132, 106, 0.1);
+  --color-chip-snack:     rgba(244, 233, 216, 0.06);
+
+  /* Elevation: darker shadows so they still separate surfaces */
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --elevation-2: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --elevation-3: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
 /* ── Reset ────────────────────────────────────────────────────────────── */
 
 *,
@@ -125,6 +197,18 @@ body {
   font: var(--text-small);
   color: var(--color-text-muted);
   margin-top: var(--space-1);
+}
+
+/* ── MCP View Root ────────────────────────────────────────────────────── */
+/* Wraps each MCP view (mcpView.tsx). Keeps content off the iframe edges and
+   clear of the host's safe-area insets (set as --safe-area-* by bridge.ts). */
+
+.mcp-view {
+  padding:
+    calc(var(--space-3) + var(--safe-area-top, 0px))
+    calc(var(--space-3) + var(--safe-area-right, 0px))
+    calc(var(--space-3) + var(--safe-area-bottom, 0px))
+    calc(var(--space-3) + var(--safe-area-left, 0px));
 }
 
 /* ── Global Focus Ring ────────────────────────────────────────────────── */

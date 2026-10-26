@@ -10,7 +10,7 @@ import logging
 from datetime import date
 
 from fastmcp import FastMCP
-from fastmcp.apps import AppConfig, ResourceCSP
+from fastmcp.apps import AppConfig
 from fastmcp.exceptions import ToolError
 from fastmcp.tools import ToolResult
 from mcp.types import ToolAnnotations
@@ -594,11 +594,9 @@ async def rebalance_plan(
 # renders. Hosts that support the MCP Apps extension display the HTML in a
 # sandboxed iframe and push the tool result into it via the ext-apps SDK.
 
-# Views are single-file bundles (JS/CSS inlined), so the only external origins
-# left are Google Fonts (stylesheet + font files).
-_VIEW_CSP = ResourceCSP(
-    resource_domains=["https://fonts.googleapis.com", "https://fonts.gstatic.com"],
-)
+# Views are single-file bundles (JS/CSS inlined) that use the host's fonts and
+# theme variables, so they load nothing from any origin and declare no CSP
+# domains: hosts apply their restrictive default.
 
 
 # Name new targets get when the member has no active target to take a name from.
@@ -766,11 +764,19 @@ async def show_grocery_checklist(
 
 # Each resource serves a single-file HTML bundle from frontend/dist/views/
 # as-is: all JS and CSS are inlined, so nothing loads from this server.
+#
+# prefersBorder asks the host to frame the view (border + background) or not
+# (passed by its alias: mypy's pydantic plugin only accepts that spelling):
+# - true for the macro setter and grocery list: a compact form and an open
+#   checklist with no outer container of their own, which read best boxed as
+#   one unit in the conversation;
+# - false for the recipe selector and weekly calendar: both are already built
+#   from bordered cards, so a host frame would just nest a box around boxes.
 
 
 @mcp.resource(
     "ui://yes_chef_mcp/macro-setter.html",
-    app=AppConfig(csp=_VIEW_CSP),
+    app=AppConfig(prefersBorder=True),
 )
 def macro_setter_resource() -> str:
     """Interactive macro target editor UI."""
@@ -781,7 +787,7 @@ def macro_setter_resource() -> str:
 
 @mcp.resource(
     "ui://yes_chef_mcp/recipe-selector.html",
-    app=AppConfig(csp=_VIEW_CSP),
+    app=AppConfig(prefersBorder=False),
 )
 def recipe_selector_resource() -> str:
     """Recipe browser with card grid UI."""
@@ -792,7 +798,7 @@ def recipe_selector_resource() -> str:
 
 @mcp.resource(
     "ui://yes_chef_mcp/weekly-calendar.html",
-    app=AppConfig(csp=_VIEW_CSP),
+    app=AppConfig(prefersBorder=False),
 )
 def weekly_calendar_resource() -> str:
     """Weekly meal plan calendar UI."""
@@ -803,7 +809,7 @@ def weekly_calendar_resource() -> str:
 
 @mcp.resource(
     "ui://yes_chef_mcp/grocery-list.html",
-    app=AppConfig(csp=_VIEW_CSP),
+    app=AppConfig(prefersBorder=True),
 )
 def grocery_list_resource() -> str:
     """Grocery checklist UI."""

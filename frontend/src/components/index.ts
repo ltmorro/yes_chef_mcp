@@ -15,3 +15,5 @@ export { ViewStatus } from "./ViewStatus";
 export type { ViewStatusProps } from "./ViewStatus";
 export { ActionStatus } from "./ActionStatus";
 export type { ActionStatusProps } from "./ActionStatus";
+export { FullscreenToggle } from "./FullscreenToggle";
+export type { FullscreenToggleProps } from "./FullscreenToggle";
