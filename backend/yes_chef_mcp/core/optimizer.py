@@ -1,12 +1,18 @@
-"""Meal and plan optimization using MILP (python-mip) with greedy fallback.
+"""Meal and plan optimization using heuristic search.
 
-The optimizer uses a tiered solving strategy:
-1. MILP via python-mip (CBC solver) — optimal, used when tractable
-2. Greedy heuristic with simulated annealing — fast "good enough" fallback
-3. Continuous relaxation via scipy — for serving-size-only adjustments
+Current solving strategy:
+1. Greedy heuristic — picks recipes one at a time to minimize macro deviation
+   (used by optimize_meal and optimize_plan)
+2. Continuous optimization via scipy (L-BFGS-B) — for serving-size-only
+   adjustments in rebalance_plan
 
-When MILP is infeasible, the constraint relaxation cascade (constraint_relaxer.py)
-progressively drops soft constraints until a solution is found.
+An exact MILP solver (python-mip) is planned but not implemented yet.
+
+When the greedy search finds no acceptable solution, the constraint relaxation
+cascade (constraint_relaxer.py) progressively drops soft constraints until one
+is found.
+
+All functions here return proposals; none of them write to the database.
 """
 
 from __future__ import annotations

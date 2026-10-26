@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from yes_chef_mcp.core.db import get_db
 from yes_chef_mcp.core.meal_composer import compose_meal
 from yes_chef_mcp.core.models import (
+    DetailLevel,
     MealComponent,
     MealType,
     RecipeCategory,
@@ -181,9 +182,11 @@ async def get_plan_summary(
     plan_id: str,
     member_id: str | None = None,
     day: int | None = None,
-    detail: str = "daily",
+    detail: DetailLevel = DetailLevel.DAILY,
 ) -> MealPlanSummarySchema:
     """Get meal plan summary."""
+    if await get_meal_plan(plan_id) is None:
+        raise HTTPException(status_code=404, detail="Plan not found")
     return await get_meal_plan_summary(plan_id, member_id, day, detail)
 
 
@@ -194,7 +197,7 @@ async def add_slot(
 ) -> list[MealSlotSchema]:
     """Add a recipe to a meal plan slot."""
     return await add_to_meal_plan(
-        plan_id, request.day_offset, request.meal_type.value,
+        plan_id, request.day_offset, request.meal_type,
         request.recipe_id, request.servings, request.member_servings,
     )
 
@@ -216,7 +219,7 @@ async def rebalance_plan_route(
     plan_id: str, request: RebalancePlanRequest
 ) -> RebalancedPlanSchema:
     """Rebalance a meal plan for a member."""
-    return await rebalance_plan(plan_id, request.member_id, request.strategy.value)
+    return await rebalance_plan(plan_id, request.member_id, request.strategy)
 
 
 @router.get("/plans/{plan_id}/grocery-list", response_model=GroceryListSchema)
@@ -239,7 +242,7 @@ async def optimize_meal_route(
     """Optimize a single meal."""
     return await optimize_meal(
         member_ids=request.member_ids,
-        meal_type=request.meal_type.value,
+        meal_type=request.meal_type,
         candidate_recipe_ids=request.candidate_recipe_ids,
         required_recipe_ids=request.required_recipe_ids,
         excluded_recipe_ids=request.excluded_recipe_ids,
