@@ -128,6 +128,28 @@ test.describe("recipe selector", () => {
   });
 });
 
+test("grocery items: visible checkbox, one toggle per click, keyboard works", async ({ page }) => {
+  const host = await openView(page, "grocery-list", { toolResult: grocery });
+  const rice = host.view.getByRole("checkbox", { name: /^rice/ });
+  await expect(rice).not.toBeChecked();
+
+  // The box is drawn next to the item, not just the hidden input
+  const row = host.view.locator("label", { has: rice });
+  const box = await row.locator("span[aria-hidden]").first().boundingBox();
+  expect(box?.width).toBeGreaterThanOrEqual(16);
+
+  // Clicking anywhere on the row toggles exactly once
+  await host.view.getByText("Garlic Rice").first().click();
+  await expect(rice).toBeChecked();
+  await expect(host.view.getByRole("button", { name: "Confirm List (3 items)" })).toBeVisible();
+  await host.view.getByText("rice", { exact: true }).click();
+  await expect(rice).not.toBeChecked();
+
+  await rice.focus();
+  await page.keyboard.press("Space");
+  await expect(rice).toBeChecked();
+});
+
 test("grocery confirm: context with the to-buy list, then a user message", async ({ page }) => {
   const host = await openView(page, "grocery-list", { toolResult: grocery });
   await host.view.getByText("rice", { exact: true }).click(); // already in the pantry
