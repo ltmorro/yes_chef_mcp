@@ -70,8 +70,39 @@
   background: var(--color-surface-hover);
 }
 
-.checkboxWrapper {
+.checklistItem[data-focus-visible] {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Border drawn with inset box-shadow so checking never shifts layout */
+.checkbox {
   flex-shrink: 0;
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: var(--radius-none);
+  box-shadow: inset 0 0 0 2px var(--color-text-dim);
+  color: var(--color-text-inverse);
+}
+
+.checklistItem[data-hovered] .checkbox {
+  box-shadow: inset 0 0 0 2px var(--color-text-muted);
+}
+
+.checklistItem[data-selected] .checkbox {
+  background: var(--color-primary);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.checkmark {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .itemDetails {

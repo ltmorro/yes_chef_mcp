@@ -140,28 +140,35 @@ function CategoryHeader({
 
 /* ── Checklist Item ───────────────────────────────────────────────────── */
 
-function ChecklistItem({
-  item,
-  isChecked,
-  onToggle,
-}: {
+interface ChecklistItemProps {
   item: GroceryItem;
   isChecked: boolean;
   onToggle: () => void;
-}) {
+}
+
+/**
+ * The whole row is the checkbox (RAC renders a <label> around a hidden
+ * input), so a click anywhere toggles once and the box is visible.
+ */
+function ChecklistItem({ item, isChecked, onToggle }: ChecklistItemProps) {
   const displayQty = item.quantity
     ? `${item.quantity}${item.unit ? " " + item.unit : ""}`
     : "";
 
   return (
-    <div className={styles.checklistItem} onClick={onToggle}>
-      <div className={styles.checkboxWrapper}>
-        <Checkbox
-          isSelected={isChecked}
-          onChange={onToggle}
-          aria-label={`${item.name}${displayQty ? ` (${displayQty})` : ""}`}
-        />
-      </div>
+    <Checkbox
+      className={styles.checklistItem}
+      isSelected={isChecked}
+      onChange={onToggle}
+      aria-label={`${item.name}${displayQty ? ` (${displayQty})` : ""}`}
+    >
+      <span className={styles.checkbox} aria-hidden="true">
+        {isChecked && (
+          <svg viewBox="0 0 16 16" className={styles.checkmark}>
+            <path d="M4 8.5l2.5 2.5L12 5.5" />
+          </svg>
+        )}
+      </span>
 
       <div className={styles.itemDetails}>
         <span className={`${styles.itemName} ${isChecked ? styles.itemNameChecked : ""}`}>
@@ -177,7 +184,7 @@ function ChecklistItem({
           {item.recipe_sources.join(", ")}
         </div>
       )}
-    </div>
+    </Checkbox>
   );
 }
 
