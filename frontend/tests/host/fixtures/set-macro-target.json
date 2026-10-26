@@ -1,0 +1,19 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"id\":\"7cec6aa5-95a1-4a53-9d34-f62e16b9f911\",\"member_id\":\"m1\",\"name\":\"Cut\",\"calories\":2165.0,\"protein_g\":150.0,\"carbs_g\":200.0,\"fat_g\":65.0,\"is_active\":true}"
+    }
+  ],
+  "structuredContent": {
+    "id": "7cec6aa5-95a1-4a53-9d34-f62e16b9f911",
+    "member_id": "m1",
+    "name": "Cut",
+    "calories": 2165.0,
+    "protein_g": 150.0,
+    "carbs_g": 200.0,
+    "fat_g": 65.0,
+    "is_active": true
+  },
+  "isError": false
+}

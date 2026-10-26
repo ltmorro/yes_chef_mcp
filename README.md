@@ -88,6 +88,42 @@ uv run ruff format .
 uv run mypy yes_chef_mcp/
 ```
 
+### Fake-host tests
+
+`frontend/tests/host/` holds Playwright tests that load the built MCP views
+into a fake MCP Apps host (a page that plays the host side of the protocol
+over `postMessage`) and assert the protocol messages each button sends
+(`tools/call`, `ui/message`, `ui/update-model-context`,
+`ui/request-display-mode`) plus what the view shows. They also cover host
+theming, the fullscreen toggle, and the SPA calendar with a mocked `/api`.
+No backend, model or network is involved: tool results come from JSON
+fixtures and the built files are served by `vite preview`.
+
+```bash
+cd frontend
+npm install
+npm run build        # the tests load dist/
+npm run test:host
+```
+
+They use Playwright's own Chromium (installed with `npx playwright install
+chromium`, or found via `PLAYWRIGHT_BROWSERS_PATH`). To use another Chromium
+binary, set `PW_CHROMIUM_PATH=/path/to/chrome`. The preview server port
+defaults to 4319 (`HOST_TEST_PORT` to change it).
+
+The fixtures in `frontend/tests/host/fixtures/` are real `show_*` /
+`set_macro_target` results recorded from a seeded throwaway database. After
+changing a tool's output, refresh them with:
+
+```bash
+cd backend
+uv run python scripts/record_view_fixtures.py
+```
+
+These tests check our side of the protocol against a host we wrote. They do
+**not** replace a smoke test in a real MCP host (e.g. Claude): host
+sandboxing, CSP, real capability sets and display-mode behavior can differ.
+
 ## Architecture
 
 ```text

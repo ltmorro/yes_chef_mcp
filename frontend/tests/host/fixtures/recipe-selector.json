@@ -1,0 +1,49 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Showing 2 recipes"
+    }
+  ],
+  "structuredContent": {
+    "recipes": [
+      {
+        "id": "r1",
+        "name": "Lemon Chicken",
+        "category": "main",
+        "tags": [
+          "dinner"
+        ],
+        "prep_minutes": null,
+        "cook_minutes": null,
+        "macro_summary": {
+          "calories": 450.0,
+          "protein_g": 40.0,
+          "carbs_g": 30.0,
+          "fat_g": 10.0
+        },
+        "search_score": 1.0,
+        "match_type": "keyword"
+      },
+      {
+        "id": "r2",
+        "name": "Garlic Rice",
+        "category": "main",
+        "tags": [
+          "dinner"
+        ],
+        "prep_minutes": null,
+        "cook_minutes": null,
+        "macro_summary": {
+          "calories": 320.0,
+          "protein_g": 40.0,
+          "carbs_g": 30.0,
+          "fat_g": 10.0
+        },
+        "search_score": 1.0,
+        "match_type": "keyword"
+      }
+    ]
+  },
+  "isError": false
+}
