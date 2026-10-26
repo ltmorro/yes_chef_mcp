@@ -45,8 +45,8 @@ export interface HostSupport {
 /** Fullscreen toggle state, offered only when both the view and the host support fullscreen. */
 export interface DisplayModeControl {
   isFullscreen: boolean;
-  /** Ask the host to switch between inline and fullscreen. */
-  toggleFullscreen: () => Promise<void>;
+  /** Ask the host to switch between inline and fullscreen; resolves to the mode it set. */
+  toggleFullscreen: () => Promise<string>;
 }
 
 /** A connected view with its current payload. */
@@ -166,10 +166,11 @@ export function useMcpView<T>(
     (hostContext?.availableDisplayModes?.includes("fullscreen") ?? false);
 
   const toggleFullscreen = useCallback(async () => {
-    if (!app) return;
+    if (!app) throw new Error("Not connected to the host.");
     const { mode } = await app.requestDisplayMode({ mode: isFullscreen ? "inline" : "fullscreen" });
     // The host answers with the mode it actually set; reflect it right away.
     setHostContext((ctx) => ({ ...ctx, displayMode: mode }));
+    return mode;
   }, [app, isFullscreen]);
 
   if (error) return { status: "error", message: `Couldn't connect to the MCP host: ${error.message}` };
